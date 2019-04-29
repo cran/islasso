@@ -1,0 +1,39 @@
+useDynLib(islasso, .registration = TRUE, .fixes = C_)
+
+import(glmnet, Matrix)
+importFrom(graphics, abline, legend, lines, par, plot,
+	points, segments, axis, text)
+importFrom(utils, setTxtProgressBar, txtProgressBar)
+importFrom(stats, approx, coef, contrasts, gaussian,
+                is.empty.model, lm, logLik, model.matrix,
+                model.offset, model.response, model.weights,
+                na.omit, pchisq, pnorm, printCoefmat, qnorm,
+                quantile, rbinom, residuals, rnorm, rpois,
+                spline, symnum, vcov, runif, optimize, splinefun)
+
+export(islasso, islasso.control, islasso.fit, 
+	print.islasso, summary.islasso, plot.islasso, 
+	predict.islasso, anova.islasso, print.anova.islasso, 
+	logLik.islasso, residuals.islasso, fitted.islasso, 
+	coef.islasso, AIC.islasso, deviance.islasso, vcov.islasso, 
+	print.logLik.islasso, optim.islasso, modelX, simulXY)
+
+S3method(print, islasso)
+S3method(print, logLik.islasso)
+S3method(summary, islasso)
+S3method(print, summary.islasso)
+S3method(coef, islasso)
+S3method(vcov, islasso)
+S3method(logLik, islasso)
+S3method(residuals, islasso)
+S3method(fitted, islasso)
+S3method(AIC, islasso)
+S3method(deviance, islasso)
+S3method(plot, islasso)
+S3method(predict, islasso)
+S3method(anova, islasso)
+S3method(print, anova.islasso)
+
+
+
+

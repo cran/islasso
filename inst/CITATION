@@ -1,0 +1,21 @@
+citHeader("To cite glmnet in publications use:")
+
+citEntry(entry = "Article",
+  title        = "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression",
+  author       = personList(as.person("Giovanna Cilluffo"),
+                   as.person("Gianluca Sottile"),
+                   as.person("Stefania La Grutta"),
+		   as.person("Vito MR Muggeo")),
+  journal      = "Statistical Methods in Medical Research",
+  year         = "2019",
+  volume       = "0",
+  number       = "0",
+  pages        = "1--13",
+  doi 	       = "10.1177/0962280219842890",
+
+  textVersion  =
+  paste("Giovanna Cilluffo, Gianluca Sottile, Stefania La Grutta, Vito MR Muggeo (2019).",
+        "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression.",
+        "Statistical Methods in Medical Research, 0(0), 1-13.",
+        "doi:10.1177/0962280219842890.")
+)
