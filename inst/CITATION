@@ -1,4 +1,4 @@
-citHeader("To cite glmnet in publications use:")
+citHeader("To cite islasso in publications use:")
 
 citEntry(entry = "Article",
   title        = "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression",
@@ -18,4 +18,20 @@ citEntry(entry = "Article",
         "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression.",
         "Statistical Methods in Medical Research, 0(0), 1-13.",
         "doi:10.1177/0962280219842890.")
+)
+
+citEntry(entry = "Manual",
+  title        = "The R package islasso: estimation and hypothesis testing in lasso regression",
+  author       = personList(as.person("Gianluca Sottile"),
+                   as.person("Giovanna Cilluffo"),
+		               as.person("Vito MR Muggeo")),
+  year         = "2019",
+  url          = "https://www.researchgate.net/publication/333853040_The_R_package_islasso_estimation_and_hypothesis_testing_in_lasso_regression",
+  doi 	       = "10.13140/RG.2.2.16360.11521",
+
+  textVersion  =
+  paste("Gianluca Sottile, Giovanna Cilluffo, Vito MR Muggeo (2019).",
+        "The R package islasso: estimation and hypothesis testing in lasso regression.",
+        "Technical Report on ResearchGate.",
+        "doi:10.13140/RG.2.2.16360.11521.")
 )

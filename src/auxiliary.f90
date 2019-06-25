@@ -1,52 +1,3 @@
-subroutine dnrm(x,n)
-implicit none
-integer :: n,i
-double precision :: x(n),dnm
-do i = 1, n
-    x(i) = dnm(x(i))
-end do
-end subroutine dnrm
-
-subroutine dnrm2(x,n)
-implicit none
-integer :: n,i
-double precision :: x(n),dnm2
-!double precision, parameter :: thresh = 0.000d1
-do i = 1, n
-    x(i) = dnm2(x(i))
-!    if(x(i).lt.thresh) x(i) = thresh
-end do
-end subroutine dnrm2
-
-subroutine pnrm(x,n)
-implicit none
-integer :: n,i
-double precision :: x(n),pnm
-do i = 1, n
-    x(i) = pnm(x(i))
-end do
-end subroutine pnrm
-
-subroutine pnrm2(x,n)
-implicit none
-integer :: n,i
-double precision :: x(n),pnm2
-!double precision, parameter :: thresh = 0.000d1
-do i = 1, n
-    x(i) = pnm2(x(i))
-!    if(x(i).lt.thresh) x(i) = thresh
-end do
-end subroutine pnrm2
-
-subroutine qnrm(x,n)
-implicit none
-integer :: n,i
-double precision :: x(n),qnm
-do i = 1, n
-    x(i) = qnm(x(i))
-end do
-end subroutine qnrm
-
 subroutine inv(n, A, invA, info)
 integer :: info, n
 double precision :: A(n, n), invA(n, n)
@@ -217,6 +168,34 @@ end subroutine prod1
 !tempMat = transpose(tempMat2)
 !end subroutine prod2
 
+subroutine armijo(beta,dir,dtg,f0,alpha,h,x,y,w,offset,n,p,lambda,eta,res,eps)
+integer :: n,p
+double precision :: beta(p),dir(p),dtg,f0,alpha,x(n,p),y(n),w(n),lambda,eps
+double precision :: offset(n),eta(n),res(n),fn,betan(p),ind,c_1,fac,h
+h = 1.d0
+c_1 = 0.01d0
+fac = 0.9d0
+eta = 0.d0
+betan = beta + h * dir
+ind = 0.d0
+call linear_predictor(x,betan,eta,offset,n,p)
+res = y - eta
+fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + (1.d0-alpha)*sum(betan**2))
+ind = f0 + c_1 * h * dtg
+do while (fn.gt.ind)
+    h = fac * h
+    betan = beta + h * dir
+    call linear_predictor(x,betan,eta,offset,n,p)
+    res = y - eta
+    fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + 0.5d0*(1.d0-alpha)*sum(betan**2))
+    ind = f0 + c_1 * h * dtg
+    if(h.le.eps) exit
+end do
+beta = betan
+f0 = fn
+end subroutine armijo
+
+
 subroutine prod2(xtx,tempMat,invH,cov1,hi,p)
 integer :: p
 double precision :: xtx(p,p),tempMat(p,p),invH(p,p),cov1(p,p),hi(p)
@@ -233,6 +212,7 @@ subroutine linear_predictor(x,beta,eta,offset,n,p)
 integer :: n,p
 double precision :: x(n,p),beta(p),eta(n),offset(n)
 integer :: i,j
+eta = 0.d0
 do i = 1, n
     eta(i) = offset(i)
     do j = 1, p

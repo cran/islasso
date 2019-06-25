@@ -10,28 +10,34 @@
 \alias{residuals.islasso}
 \alias{logLik.islasso}
 \alias{print.logLik.islasso}
+\alias{model.matrix.islasso}
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
-Induced Smoothing Lasso Model
+The Induced Smoothed lasso
 }
 \description{
-\code{islasso} is used to fit induced smoothing lasso model. Fit linear, logistic, poisson and gamma regression models.
+\code{islasso} is used to fit lasso regression models wherein the nonsmooth \eqn{L_1}{L1} norm penalty is replaced by a smooth approximation justified under the induced smoothing paradigm. Simple lasso-type or elastic-net penalties are permitted and Linear, Logistic, Poisson and Gamma responses are allowed.
 
 }
 \usage{
-islasso(formula, family = gaussian, lambda, data, weights, subset,
-        offset, unpenalized, contrasts = NULL, control = islasso.control())
+islasso(formula, family = gaussian, lambda, alpha=1, data, weights, subset,
+        offset, unpenalized, contrasts = NULL, control = is.control())
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{formula}{
-an object of class \dQuote{formula} (or one that can be coerced to that class): a symbolic description of the model to be fitted.
+an object of class \dQuote{formula} (or one that can be coerced to that class): the `usual'  symbolic description of the model to be fitted.
 }
   \item{family}{
-a description of the error distribution, \code{family=gaussian}, \code{family=binomial} and \code{family=quasibinomial}, \code{family=poisson} and \code{quasipoisson}, \code{family=Gamma} are implemented. \code{family=gaussian} is implemented with \code{identity} link, \code{family=binomial} is implemented with \code{logit} and \code{probit} links, \code{family=poisson} is implemented with \code{log} link and \code{family=Gamma} is implemented with \code{inverse}, \code{log} and \code{identity} links.
+the assumed response distribution. Gaussian, (quasi) Binomial, (quasi) Poisson, and Gamma are allowed. \code{family=gaussian} is implemented with \code{identity} link, \code{family=binomial} is implemented with \code{logit} or \code{probit} links, \code{family=poisson} is implemented with \code{log} link, and \code{family=Gamma} is implemented with \code{inverse}, \code{log} and \code{identity} links.
 }
   \item{lambda}{
-Value of lambda used to compute beta. If lambda is missing the optimal lambda is computed using \code{\link{cv.glmnet}}.
+Value of the tuning parameter in the objective. If missing, the optimal lambda is computed using \code{\link{cv.glmnet}}.
+}
+  \item{alpha}{
+The elastic-net mixing parameter, with \eqn{0\le\alpha\le 1}. The penalty is defined
+    as \deqn{(1-\alpha)/2||\beta||_2^2+\alpha||\beta||_1.} \code{alpha=1}
+    is the lasso penalty, and \code{alpha=0} the ridge penalty.
 }
   \item{data}{
 an optional data frame, list or environment (or object coercible by as.data.frame to a data frame) containing the variables in the model. If not found in data, the variables are taken from environment(formula), typically the environment from which \code{islasso} is called.
@@ -46,7 +52,7 @@ an optional vector specifying a subset of observations to be used in the fitting
 this can be used to specify an a priori known component to be included in the linear predictor during fitting. This should be NULL or a numeric vector of length equal to the number of cases.
 }
 \item{unpenalized}{
-a vector used to specify the unpenalized estimators; unpenalized can be a vector of integers or characters specifying the names of the predictors with unpenalized estimators.
+optional. A vector of integers or characters indicating the covariate coefficients not to penalize. The intercept, if included in the model, is \emph{always} unpenalized.
 }
 \item{contrasts}{an optional list. See the contrasts.arg of \code{model.matrix.default}.}
   \item{control}{
@@ -54,11 +60,10 @@ a list of parameters for controlling the fitting process (see \code{islasso.cont
 }
 }
 \details{
-Models for \code{islasso} are specified symbolically. A typical model has the form \code{response ~ terms} where response is the response vector and terms is a series of terms which specifies a linear predictor for response. A terms specification of the form \code{first + second} indicates all the terms in first together with all the terms in second with duplicates removed. A specification of the form \code{first*second} indicates the set of terms obtained by taking the interactions of all terms in first with all terms in second.
-}
+\code{islasso} estimates regression models by imposing a lasso-type penalty on some or all regression coefficients. However the nonsmooth \eqn{L_1}{L1} norm penalty is replaced by a smooth approximation justified under the induced smoothing paradigm. The advantage is that reliable standard errors are returned as model output and hypothesis testing on linear combinantions of the regression parameters can be carried out straightforwardly via the Wald statistic. Simulation studies provide evidence that the proposed approach   controls type-I errors and exhibits good power in different scenarios.}
 \value{
 %%  ~Describe the value returned
-a list of
+A list of
 
 \item{coefficients}{a named vector of coefficients}
 \item{se}{a named vector of standard errors}
@@ -86,8 +91,9 @@ a list of
 Cilluffo, G, Sottile, G, S, La Grutta, S and Muggeo, VMR (2019). \emph{The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression}.
 Statistical Methods in Medical Research, DOI: 10.1177/0962280219842890.
 
-Cilluffo, G, Fasola, S, La Grutta, S and Muggeo, VMR (2016). \emph{The Induced Smoothed Lasso}.
-Proceedings 31st International Workshop of Statistical Modeling, Rennes, vol.1 69-74.
+Sottile, G, Cilluffo, G, Muggeo, VMR (2019). \emph{The R package islasso: estimation and
+  hypothesis testing in lasso regression}. Technical Report on ResearchGate.
+  doi:10.13140/RG.2.2.16360.11521.
 }
 \author{
 The main function of the same name was inspired by the R function previously implemented by Vito MR Muggeo.
@@ -127,7 +133,7 @@ deviance(o)
 AIC(o)
 logLik(o)
 
-\donttest{
+\dontrun{
 # for the interaction
 o <- islasso(y~-1+X[,1]*X[,2], family=gaussian)
 

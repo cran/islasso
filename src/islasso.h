@@ -11,13 +11,6 @@ void F77_SUB(solve)(double *A, double *b, int *n, int *info);
 void F77_SUB(solve2)(double *A, double *b, int *n, int *info);
 void F77_SUB(solve3)(double *A, double *b, int *n, int *info);
 
-void F77_SUB(pnrm)(double *x, int *n);
-void F77_SUB(dnrm)(double *x, int *n);
-void F77_SUB(qnrm)(double *x, int *n);
-
-void F77_SUB(pnrm2)(double *x, int *n);
-void F77_SUB(dnrm2)(double *x, int *n);
-
 void F77_SUB(identitylink)(double *x, int *n, double *mu);
 void F77_SUB(identitylinkinv)(double *x, int *n, double *eta);
 void F77_SUB(identitymueta)(double *x, int *n, double *eta);
@@ -44,27 +37,27 @@ void F77_SUB(gamma_variance)(double *x, int *n, double *varmu);
 
 void
 F77_SUB(gradient)(double *theta, double *se, double *lambda, double *xtw,
-            double *res, double *pi, int *n, int *p, double *grad);
+            double *res, double *pi, int *n, int *p, double *grad, double *alpha);
 
 void
 F77_SUB(hessian)(double *theta, double *se, double *lambda, double *xtx,
-                  double *pi, int *p, double *hess);
+                  double *pi, int *p, double *hess, double *alpha);
 
 void
 F77_SUB(islasso2)(double *X, double *y, int *n, int *p, double *theta, double *se,
-                 double *cov, double *lambda, double *pi, int *estpi,
-                 double *h, int *itmax, double *tol, double *sigma2, double *trace,
+                 double *cov, double *lambda, double *alpha, double *pi, int *estpi,
+                 double *h, int *itmax, double *tol, double *sigma2, int *trace,
                  int *adaptive, double *offset, int *conv, int *stand, int *intercept,
                  double *eta, double *mu, double *res, double *dev, double *weights,
-                 double *hi, double *edf);
+                 double *hi, double *edf, double *grad2);
 
 void
 F77_SUB(islasso_glm)(double *X, double *y, int *n, int *p, double *theta, double *se,
-                  double *cov, double *lambda, double *pi, int *estpi,
-                  double *h, int *itmax, double *tol, double *sigma2, double *trace,
+                  double *cov, double *lambda, double *alpha, double *pi, int *estpi,
+                  double *h, int *itmax, double *tol, double *sigma2, int *trace,
                   int *adaptive, double *offset, int *conv, int *stand, int *intercept,
                   double *eta, double *mu, double *dev, double *weights, double *hi,
-                  double *edf, int *fam, int *link);
+                  double *edf, int *fam, int *link, double *grad2);
 
 void
 F77_SUB(family)(int *fam, int *link, int *func, double *x, int *n, double *y);
@@ -92,3 +85,10 @@ F77_SUB(linear_predictor)(double *x, double *beta, double *eta, double *offset, 
 
 void
 F77_SUB(setdiff)(int *p, int *iprofile, int *ind_noprofile);
+
+void
+F77_SUB(armijo)(double *beta, double *dir, double *dtg, double *f0,
+                double *alpha, double *h, double *x,
+                double *y, double *w, double *offset, int *n, int *p,
+                double *lambda, double *eta, double *res, double *eps);
+

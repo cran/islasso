@@ -50,7 +50,7 @@ implicit none
 integer :: n,i
 double precision :: x(n),qnm,mu(n)
 do i = 1, n
-    mu(i) = qnm(x(i))
+    mu(i) = qnm(x(i), 0.d0, 1.d0)
 end do
 end subroutine probitlink
 
@@ -63,7 +63,7 @@ do i = 1, n
     eta(i) = x(i)
     if(eta(i).le.(-thresh)) eta(i) = -thresh
     if(eta(i).ge.thresh) eta(i) = thresh
-    eta(i) = pnm(eta(i))
+    eta(i) = pnm(eta(i), 0.d0, 1.d0)
 end do
 end subroutine probitlinkinv
 
@@ -73,7 +73,7 @@ integer :: n,i
 double precision :: x(n),dnm,eta(n)
 double precision, parameter :: thresh = 2.220446049250313E-16
 do i = 1, n
-    eta(i) = dnm(x(i))
+    eta(i) = dnm(x(i), 0.d0, 1.d0)
     if(eta(i).le.thresh) eta(i) = thresh
 end do
 end subroutine probitmueta

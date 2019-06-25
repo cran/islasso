@@ -1,0 +1,19 @@
+*********************************
+*                        	*
+*	Changes in islasso	*
+*                          	*
+*********************************
+
+
+===============
+version 1.1.0
+===============
+* New implementation of the estimating algorithm. Now islasso is much stabler and faster reducing the number of iterations to reach convergence. 
+* New changes:
+- step Halving with Armijo's rule has been implemented.
+- the algorithm includes the possibility to use the elastic-net approach defining an alpha parameter in the objective function as in glmnet package.
+- the summary method includes now the degree of freedom for each covariate, and in addition it is possible to choose between t-test or z-test (only for gaussian family).
+- optim.islasso has been renamed as aic.islasso the interval specification is not required now, the new  select the best tuning parameter based on the minimization of the AIC or the BIC.
+- the function islasso.control has been renamed as is.control and some control parameters have been modified.
+- two trace version has been implemented in the function is.control a compact version (trace=1) and a long version (trace=2).
+* Some bugs fixed.

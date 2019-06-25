@@ -4,19 +4,20 @@ import(glmnet, Matrix)
 importFrom(graphics, abline, legend, lines, par, plot,
 	points, segments, axis, text)
 importFrom(utils, setTxtProgressBar, txtProgressBar)
-importFrom(stats, approx, coef, contrasts, gaussian,
-                is.empty.model, lm, logLik, model.matrix,
+importFrom(stats, approx, coef, contrasts, gaussian,.getXlevels,
+                is.empty.model, lm, logLik, model.matrix, pt,
                 model.offset, model.response, model.weights,
                 na.omit, pchisq, pnorm, printCoefmat, qnorm,
                 quantile, rbinom, residuals, rnorm, rpois,
                 spline, symnum, vcov, runif, optimize, splinefun)
 
-export(islasso, islasso.control, islasso.fit, 
+export(islasso, is.control, islasso.fit, 
 	print.islasso, summary.islasso, plot.islasso, 
 	predict.islasso, anova.islasso, print.anova.islasso, 
 	logLik.islasso, residuals.islasso, fitted.islasso, 
-	coef.islasso, AIC.islasso, deviance.islasso, vcov.islasso, 
-	print.logLik.islasso, optim.islasso, modelX, simulXY)
+	coef.islasso, AIC.islasso, deviance.islasso, vcov.islasso,
+	print.logLik.islasso, aic.islasso, modelX, simulXy,
+	model.matrix.islasso)
 
 S3method(print, islasso)
 S3method(print, logLik.islasso)
@@ -33,6 +34,7 @@ S3method(plot, islasso)
 S3method(predict, islasso)
 S3method(anova, islasso)
 S3method(print, anova.islasso)
+S3method(model.matrix, islasso)
 
 
 

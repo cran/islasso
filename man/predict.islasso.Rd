@@ -6,7 +6,7 @@
   "coefficients", "class"), newdata, ...)
 }
 \arguments{
-\item{object}{a fitted object of class inheriting from "islasso".}
+\item{object}{a fitted object of class "islasso".}
 
 \item{type}{the type of prediction required. The default is on the scale of the linear predictors; the alternative "response" is on the scale of the response variable.
 Thus for a default binomial model the default predictions are of log-odds (probabilities on logit scale) and type = "response" gives the predicted probabilities. The \code{coefficients} option returns coefficients. Type "class" applies only to "binomial" models, and produces the class label.}
@@ -22,6 +22,7 @@ An object depending on the type argument
 Prediction method for islasso fitted objects
 }
 \examples{
+\dontrun{
  set.seed(1)
  n <- 100
  p <- 100
@@ -41,5 +42,5 @@ Prediction method for islasso fitted objects
  ###prediction of new dataset
  newdata <- matrix(rnorm(n*p), n, p)
  predict(o, type="response", newdata=newdata)
-
+}
 }
