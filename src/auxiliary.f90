@@ -83,21 +83,6 @@ call DGESV(n, 1, A, n, ipiv, b, n, info)
 if (info.ne.0) call islasso_trace1_4_2(info)
 end subroutine solve3
 
-!subroutine crossp(x,xtx,n,p)
-!integer :: n,p
-!double precision :: x(n,p),xtx(p,p)
-!integer :: i,j
-!!$omp parallel do shared(p, x, xtx) private(i, j)
-!do i = 1, p
-!    xtx(i,i) = dot_product(x(:,i),x(:,i))
-!    do j = (i+1), p
-!        xtx(i,j) = dot_product(x(:,i),x(:,j))
-!        xtx(j,i) = xtx(i,j)
-!    end do
-!end do
-!!$omp end parallel do
-!end subroutine crossp
-
 subroutine crossp(A, xtx, n, p)
 integer :: n, p
 double precision :: A(n, p), xtx(p, p)
@@ -180,7 +165,7 @@ betan = beta + h * dir
 ind = 0.d0
 call linear_predictor(x,betan,eta,offset,n,p)
 res = y - eta
-fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + (1.d0-alpha)*sum(betan**2))
+fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + 0.5d0*(1.d0-alpha)*sum(betan**2))
 ind = f0 + c_1 * h * dtg
 do while (fn.gt.ind)
     h = fac * h
@@ -189,7 +174,7 @@ do while (fn.gt.ind)
     res = y - eta
     fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + 0.5d0*(1.d0-alpha)*sum(betan**2))
     ind = f0 + c_1 * h * dtg
-    if(h.le.eps) exit
+    if(h.le.eps/100.d0) exit
 end do
 beta = betan
 f0 = fn

@@ -1,4 +1,5 @@
-islasso <- function(formula, family=gaussian, lambda, alpha=1, data, weights, subset, offset, unpenalized, contrasts = NULL, control = is.control()){
+islasso <- function(formula, family=gaussian, lambda, alpha=1, data, weights, subset, offset, 
+                    unpenalized, contrasts = NULL, control = is.control()){
   this.call <- match.call()
 
   if(missing(data)) data <- environment(formula)
@@ -117,7 +118,8 @@ summary.islasso <- function(object, pval=1, use.t=FALSE, ...){
 
   out <- list(coefficients=coefficients, dispersion=dispersion, df=df, res=res, aic=aic, lambda=object$lambda, nulldev=object$null.deviance,
               dev=object$deviance, df.null=object$df.null, df.res=object$df.null-(object$rank-1*object$internal$intercept*object$internal$hi[1]),
-              family=object$family, iter=object$internal$iter, pval=pval, temp=temp, call=object$call)
+              family=object$family, iter=object$internal$iter, pval=pval, unpenalized=object$internal$unpenalized, 
+              temp=temp, call=object$call)
 
   class(out) <- "summary.islasso"
   return(out)
@@ -144,12 +146,14 @@ print.summary.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), .
   }
   cat("\n")
   coefs <- x$coefficients
-  temp <- coefs[, 5] <= x$pval
-  if(sum(temp) != 0) coefs <- coefs[temp, ]
-  if(sum(temp) == 1){
-    coefs <- t(coefs)
-    rownames(coefs) <- rownames(x$coefficients)[temp]
-  }
+  if(sum(coefs[, 5] <= x$pval) == 0) warning("No coefficients lower than the selected p-value. The lowest p-value is printed.")
+  temp <- (coefs[, 5] <= x$pval) | x$unpenalized
+  if(sum(temp) == 0) temp <- coefs[, 5] == min(coefs[, 5])
+  coefs <- coefs[temp, , drop = FALSE]
+  # if(sum(temp) == 1){
+  #   coefs <- t(coefs)
+  #   rownames(coefs) <- rownames(x$coefficients)[temp]
+  # }
   printCoefmat(coefs, digits=digits, signif.stars=TRUE, has.Pvalue=TRUE, na.print="NA", cs.ind = 1L:2L, tst.ind = 3L:4L,, ...)
   cat("\n(Dispersion parameter for ", x$family$family, " family taken to be ", format(x$dispersion), ")\n\n",
       apply(cbind(paste(format(c("Null", "Residual"), justify = "right"), "deviance:"),
@@ -695,89 +699,6 @@ modelX <- function(n, p, rho=.5, scale=TRUE){
   return(X)
 }
 
-anova.islasso <- function(object, A, b, ...){
-  beta <- coef(object)
-  nms <- names(beta)
-  p <- length(beta)
-  if(missing(A) & missing(b)) A <- diag(p)
-  if(missing(A) & !missing(b)) stop("Constraint matrix A is missing")
-  if(is.vector(A)) A <- t(A)
-  k <- nrow(A)
-  mpc <- if(k > 1) TRUE else FALSE
-  if(!missing(A) & missing(b)) b <- rep(0, k)
-  if(length(b) == 1 & k > 1) b <- rep(b, k)
-  V <- vcov(object)
-  Identity <- diag(k)
-  AI <- cbind(A, Identity)
-  betab <- c(beta, -b)
-  beta_new <- AI %*% betab
-  V_new <- tcrossprod((A %*% V), A)
-  nomi <- character(length = k)
-  if(mpc){
-  #   for(i in seq_len(k)){
-  #     id <- which(A[i, ] != 0)
-  #     nomi[i] <- paste(A[i, id], nms[id], sep="*", collapse = " + ")
-  #     if(nchar(nomi[i]) > 60) nomi[i] <- paste(strtrim(nomi[i], 60), "...")
-  #   }
-    statistic2 <- drop(crossprod(beta_new, solve(V_new, beta_new)))
-    pval2 <- 1 - pchisq(statistic2, df = k)
-  }else{
-    statistic2 <- 0
-    pval2 <- 0
-  }
-    pval <- statistic <- double(length = k)
-    for(i in seq_len(k)){
-      id <- which(A[i, ] != 0)
-      nomi[i] <- paste(A[i, id], nms[id], sep="*", collapse = " + ")
-      if(nchar(nomi[i]) > 60) nomi[i] <- paste(strtrim(nomi[i], 60), "...")
-      statistic[i] <- (beta_new[i]^2) / V_new[1]
-      pval[i] <- 1 - pchisq(statistic[i], df = 1)
-    }
-    if(mpc) nomi <- c(nomi, "Overall")
-  # }
-  
-  object$anova <- list(A=A, b=b, coefficients=beta_new, vcov=V_new, k=k, nms=nomi, mpc=mpc, 
-                       tstat=statistic, pvalues=pval, tstat2=statistic2, pvalues2=pval2)
-  class(object) <- c("anova.islasso", class(object))
-  return(object)
-}
-
-print.anova.islasso <- function(x, digits = max(3, getOption("digits") - 3), ...){
-  cat("\n\t", "Simultaneous Tests for General Linear Hypotheses\n\n")
-  call <- x$call
-  if (!is.null(call)) {
-    cat("Fit: ")
-    print(call)
-    cat("\n")
-  }
-  pq <- x$anova
-  
-  mtests <- cbind(pq$coefficients, sqrt(diag(pq$vcov)), pq$tstat, pq$pvalues)
-  if(pq$mpc) mtests <- rbind(mtests, c(0, 0, pq$tstat2, pq$pvalues2))
-  colnames(mtests) <- c("Estimate", "Std. Error", "chi2 value", "Pr(>|chi2|)")
-  rownames(mtests) <- paste(pq$nms, "=", format(pq$b, digits=3, trim=TRUE))
-  if(pq$mpc) rownames(mtests)[nrow(mtests)] <- pq$nms[nrow(mtests)]
-  sig <- .Machine$double.eps
-  cat("Linear Hypotheses:\n")
-  if(pq$mpc){
-    printCoefmat2(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  }else{
-    printCoefmat(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  }
-  # if(pq$mpc){
-  #   cat("\nMultiple Comparison of Linear Hypotheses:\n")
-  #   mtests <- cbind(pq$coefficients, sqrt(diag(pq$vcov)), pq$tstat2, pq$pvalues2)
-  #   colnames(mtests) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  #   rownames(mtests) <- paste(pq$nms, "=", format(pq$b, digits=3, trim=TRUE))
-  # # if(pq$mpc) 
-  #   printCoefmat2(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  # # else
-  # #   printCoefmat(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  # }
-  cat("\n")
-  invisible(x)
-}
-
 printCoefmat2 <- function (x, digits = max(3L, getOption("digits") - 2L), signif.stars = getOption("show.signif.stars"), 
                            signif.legend = signif.stars, dig.tst = max(1L, min(5L, digits - 1L)), cs.ind = 1:k, tst.ind = k + 1, 
                            zap.ind = integer(), P.values = NULL, 
@@ -938,4 +859,85 @@ aic.islasso <- function(object, method = c("aic", "bic"), interval, y, X, interc
   return(lambda.min)
 }
 
+anova.islasso <- function(object, A, b, ...){
+  beta <- coef(object)
+  nms <- names(beta)
+  p <- length(beta)
+  if(missing(A) & missing(b)) A <- diag(p)
+  if(missing(A) & !missing(b)) stop("Constraint matrix A is missing")
+  if(is.vector(A)) A <- t(A)
+  k <- nrow(A)
+  mpc <- if(k > 1) TRUE else FALSE
+  if(!missing(A) & missing(b)) b <- rep(0, k)
+  if(length(b) == 1 & k > 1) b <- rep(b, k)
+  V <- vcov(object)
+  Identity <- diag(k)
+  AI <- cbind(A, Identity)
+  betab <- c(beta, -b)
+  beta_new <- AI %*% betab
+  V_new <- tcrossprod((A %*% V), A)
+  nomi <- character(length = k)
+  if(mpc){
+    #   for(i in seq_len(k)){
+    #     id <- which(A[i, ] != 0)
+    #     nomi[i] <- paste(A[i, id], nms[id], sep="*", collapse = " + ")
+    #     if(nchar(nomi[i]) > 60) nomi[i] <- paste(strtrim(nomi[i], 60), "...")
+    #   }
+    statistic2 <- drop(crossprod(beta_new, solve(V_new, beta_new)))
+    pval2 <- 1 - pchisq(statistic2, df = k)
+  }else{
+    statistic2 <- 0
+    pval2 <- 0
+  }
+  pval <- statistic <- double(length = k)
+  for(i in seq_len(k)){
+    id <- which(A[i, ] != 0)
+    nomi[i] <- paste(A[i, id], nms[id], sep="*", collapse = " + ")
+    if(nchar(nomi[i]) > 60) nomi[i] <- paste(strtrim(nomi[i], 60), "...")
+    statistic[i] <- (beta_new[i]^2) / V_new[1]
+    pval[i] <- 1 - pchisq(statistic[i], df = 1)
+  }
+  if(mpc) nomi <- c(nomi, "Overall")
+  # }
+  
+  object$anova <- list(A=A, b=b, coefficients=beta_new, vcov=V_new, k=k, nms=nomi, mpc=mpc, 
+                       tstat=statistic, pvalues=pval, tstat2=statistic2, pvalues2=pval2)
+  class(object) <- c("anova.islasso", class(object))
+  return(object)
+}
 
+print.anova.islasso <- function(x, digits = max(3, getOption("digits") - 3), ...){
+  cat("\n\t", "Simultaneous Tests for General Linear Hypotheses\n\n")
+  call <- x$call
+  if (!is.null(call)) {
+    cat("Fit: ")
+    print(call)
+    cat("\n")
+  }
+  pq <- x$anova
+  
+  mtests <- cbind(pq$coefficients, sqrt(diag(pq$vcov)), pq$tstat, pq$pvalues)
+  if(pq$mpc) mtests <- rbind(mtests, c(0, 0, pq$tstat2, pq$pvalues2))
+  colnames(mtests) <- c("Estimate", "Std. Error", "chi2 value", "Pr(>|chi2|)")
+  rownames(mtests) <- paste(pq$nms, "=", format(pq$b, digits=3, trim=TRUE))
+  if(pq$mpc) rownames(mtests)[nrow(mtests)] <- pq$nms[nrow(mtests)]
+  sig <- .Machine$double.eps
+  cat("Linear Hypotheses:\n")
+  if(pq$mpc){
+    printCoefmat2(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
+  }else{
+    printCoefmat(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
+  }
+  # if(pq$mpc){
+  #   cat("\nMultiple Comparison of Linear Hypotheses:\n")
+  #   mtests <- cbind(pq$coefficients, sqrt(diag(pq$vcov)), pq$tstat2, pq$pvalues2)
+  #   colnames(mtests) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
+  #   rownames(mtests) <- paste(pq$nms, "=", format(pq$b, digits=3, trim=TRUE))
+  # # if(pq$mpc) 
+  #   printCoefmat2(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
+  # # else
+  # #   printCoefmat(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
+  # }
+  cat("\n")
+  invisible(x)
+}

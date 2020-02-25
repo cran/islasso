@@ -32,7 +32,6 @@ Although nfolds can be as large as the sample size (leave-one-out CV), it is not
 
 \item{c}{the weight of the mixture in the induced smoothed lasso. \code{c=-1} means to compute it at each step of the iterative algorithm.}
 
-\item{...}{further arguments passed to or from other methods.}
 }
 \description{
 Auxiliary function for controlling the islasso model fitting.

@@ -11,8 +11,8 @@ This package implements an induced smoothed approach for hypothesis testing in l
 \tabular{ll}{
 Package: \tab islasso\cr
 Type: \tab Package\cr
-Version: \tab 1.1.0\cr
-Date: \tab 2019-05-27\cr
+Version: \tab 1.1.1\cr
+Date: \tab 2020-02-20\cr
 License: \tab GPL-2\cr
 }
 \code{\link{islasso}} is used to fit generalized linear models with a L1-penalty on (some) regression coefficients. Along with point estimates, the main advantage is to return the full covariance matrix of estimate. The resulting standard errors can be used to make inference in the lasso framework. The main function is \code{\link{islasso}} and the correspoinding fitter function \code{\link{islasso.fit}}, and many auxiliary functions are implemented to summarize and visualize results: \code{\link{summary.islasso}},  \code{\link{predict.islasso}},  \code{\link{coef.islasso}}, \code{\link{fitted.islasso}},  \code{\link{logLik.islasso}}, \code{\link{AIC.islasso}}, \code{\link{deviance.islasso}},  \code{\link{residuals.islasso}}.

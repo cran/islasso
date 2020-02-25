@@ -83,7 +83,7 @@ do i = 1, itmax
     else
         s2 = sigma2
     end if
-    cov = cov + hh * (s2 * cov1 - cov)
+    cov = cov + 0.1d0 * (s2 * cov1 - cov)
     do j = 1, p
         se(j) = sqrt(cov(j,j))
     end do
