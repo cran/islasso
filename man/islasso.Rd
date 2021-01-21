@@ -20,7 +20,7 @@ The Induced Smoothed lasso
 
 }
 \usage{
-islasso(formula, family = gaussian, lambda, alpha=1, data, weights, subset,
+islasso(formula, family = gaussian, lambda, alpha = 1, data, weights, subset,
         offset, unpenalized, contrasts = NULL, control = is.control())
 }
 %- maybe also 'usage' for other objects documented here.
@@ -52,7 +52,7 @@ an optional vector specifying a subset of observations to be used in the fitting
 this can be used to specify an a priori known component to be included in the linear predictor during fitting. This should be NULL or a numeric vector of length equal to the number of cases.
 }
 \item{unpenalized}{
-optional. A vector of integers or characters indicating the covariate coefficients not to penalize. The intercept, if included in the model, is \emph{always} unpenalized.
+optional. A vector of integers or characters indicating any covariate (in the formula) with coefficients not to be penalized. The intercept, if included in the model, is \emph{always} unpenalized.
 }
 \item{contrasts}{an optional list. See the contrasts.arg of \code{model.matrix.default}.}
   \item{control}{
@@ -67,25 +67,32 @@ A list of
 
 \item{coefficients}{a named vector of coefficients}
 \item{se}{a named vector of standard errors}
-\item{res}{the working residuals}
+\item{residuals}{the working residuals}
 \item{fitted.values}{the fitted values}
-\item{linear.predictors}{the linear predictors}
 \item{rank}{the estimated degrees of freedom}
 \item{family}{the family object used}
+\item{linear.predictors}{the linear predictors}
 \item{deviance}{the family deviance}
-\item{null.deviance}{the family null deviance}
 \item{aic}{the Akaike Information Criterion}
+\item{null.deviance}{the family null deviance}
+\item{iter}{the number of iterations of IWLS used}
+\item{weights}{the working weights, that is the weights in the final iteration of the IWLS fit}
+\item{df.residual}{the residual degrees of freedom}
 \item{df.null}{the degrees of freedom of a null model}
-\item{phi}{the estimated dispersion parameter}
-\item{beta.unbias}{unbiased coefficients}
-\item{se.unbias}{unbiased standard errors}
-\item{internal}{internal elements}
-\item{control}{the value of the control argument used}
+\item{converged}{logical. Was the IWLS algorithm judged to have converged?}
 \item{model}{if requested (the default), the model frame used.}
-\item{terms}{the terms object used.}
-\item{contrasts}{(only where relevant) the contrasts used.}
 \item{call}{the matched call}
 \item{formula}{the formula supplied}
+\item{terms}{the terms object used}
+\item{data}{he data argument.}
+\item{offset}{the offset vector used.}
+\item{control}{the value of the control argument used}
+\item{xlevels}{(where relevant) a record of the levels of the factors used in fitting.}
+\item{lambda}{the lambda value used in the islasso algorithm}
+\item{alpha}{the elasticnet mixing parameter}
+\item{dispersion}{the estimated dispersion parameter}
+\item{internal}{internal elements}
+\item{contrasts}{(only where relevant) the contrasts used.}
 }
 \references{
 Cilluffo, G, Sottile, G, S, La Grutta, S and Muggeo, VMR (2019). \emph{The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression}.
@@ -140,7 +147,7 @@ o <- islasso(y~-1+X[,1]*X[,2], family=gaussian)
 ##### binomial ######
 coef <- c(c(1,1,1), rep(0, p-3))
 X <- matrix(rnorm(n*p), n, p)
-eta <- drop(cbind(1, X)\%*\%c(1, coef))
+eta <- drop(cbind(1, X)\%*\%c(-1, coef))
 mu <- binomial()$linkinv(eta)
 y <- rbinom(n, 100, mu)
 y <- cbind(y, 100-y)
@@ -159,13 +166,13 @@ o <- islasso(y~X, family=poisson)
 ##### Gamma ######
 coef <- c(c(1,1,1), rep(0, p-3))
 X <- matrix(rnorm(n*p), n, p)
-eta <- drop(cbind(1, X)\%*\%c(1, coef))
+eta <- drop(cbind(1, X)\%*\%c(-1, coef))
 mu <- Gamma(link="log")$linkinv(eta)
 shape <- 10
 phi <- 1 / shape
 y <- rgamma(n, scale = mu / shape, shape = shape)
 
-o <- islasso(y~X, family=Gamma(link="log"))
+o <- islasso(y~X, family=Gamma(link="log"), lambda = 1)
 
 }
 }

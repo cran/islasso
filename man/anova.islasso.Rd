@@ -9,7 +9,7 @@ General linear hypotheses for linear combinantions of the regression coefficient
 }
 
 \usage{
-\method{anova}{islasso}(object, A, b, ...)
+\method{anova}{islasso}(object, A, b, ci, ...)
 }
 \arguments{
 \item{object}{a fitted model object of class "islasso".}
@@ -17,6 +17,8 @@ General linear hypotheses for linear combinantions of the regression coefficient
 \item{A}{a specification of the linear hypotheses to be tested. Linear functions can be specified by either a single vector (of length p) or by a matrix (of dimension k x p) of one or more linear hypotheses. }
 
 \item{b}{an optional numeric vector specifying the right hand side of the hypothesis. Can be a scalar.}
+
+\item{ci}{optionally, a two columns matrix of estimated confidence intervals for the estimated coefficients.}
 
 \item{...}{not used.}
 }

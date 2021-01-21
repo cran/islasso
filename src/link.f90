@@ -111,7 +111,7 @@ double precision :: x(n),eta(n)
 double precision, parameter :: thresh = 2.220446049250313E-16
 eta = exp(x)
 do i = 1, n
-    if(x(i).le.thresh) x(i) = thresh
+    if(eta(i).le.thresh) eta(i) = thresh
 end do
 end subroutine logmueta
 

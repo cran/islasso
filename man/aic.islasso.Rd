@@ -10,7 +10,7 @@ This function performs a minimization of the AIC/BIC criterion for selecting the
 \usage{
 aic.islasso(object, method = c("aic", "bic"), interval, y, X, 
   intercept = FALSE, family = gaussian(), alpha = 1, offset, 
-  weights, unpenalized, control = is.control())
+  weights, unpenalized, control = is.control(), trace = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
@@ -28,6 +28,7 @@ aic.islasso(object, method = c("aic", "bic"), interval, y, X,
 \item{weights}{observation weights. Default is 1 for each observation.}
 \item{unpenalized}{a vector used to specify the unpenalized estimators; unpenalized has to be a vector of logicals.}
 \item{control}{a list of parameters for controlling the fitting process (see \code{islasso.control} for more details).}
+\item{trace}{Should the iterative procedure be printed? TRUE is the default value.}
 }
 \details{
 Minimization of the Akaike Information Criterion (AIC) or Bayesian Information Criterion (BIC) is sometimes employed to select the tuning parameter as an alternative to the cross validation. The model degrees of freedom (not necessarly integers as in the plain lasso) used in AIC/BIC are computed as trace of the hat matrix at convergence. 

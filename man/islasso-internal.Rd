@@ -11,6 +11,7 @@ format.perc(probs, digits)
 qqNorm(x, probs=seq(.005, .995, l=200), centre=FALSE, scale=FALSE, 
   leg=TRUE, mean=0, sd=1, add=FALSE, p.col=1, dF=FALSE, ylab, ...)
 ginv2(X, tol = sqrt(.Machine$double.eps))
+modelX(n, p, rho=.5, scale=TRUE)
 printCoefmat2(x, digits = max(3L, getOption("digits") - 2L), 
   signif.stars = getOption("show.signif.stars"), 
   signif.legend = signif.stars, dig.tst = max(1L, min(5L, digits - 1L)), 
@@ -19,6 +20,14 @@ printCoefmat2(x, digits = max(3L, getOption("digits") - 2L),
     substr(cn[nc], 1L, 3L) \%in\% c("Pr(", "p-v"), 
   eps.Pvalue = .Machine$double.eps, na.print = "NA", quote = FALSE, 
   right = TRUE, ...)
+.checkinput(X, y, family, alpha, intercept, weights, offset, 
+  unpenalized, control)
+.startpoint(X, y, lambda, alpha, weights, offset, mustart, 
+  family, intercept, setting)
+.islasso(prep, start, Lambda, fam, link)
+
+cislasso(object, a, ci)
+ci.fitted.islasso(object, newx, ci = NULL, conf.level=.95, only.ci = FALSE)
 }
 \author{Gianluca Sottile (\email{gianluca.sottile@unipa.it})}
 \details{These functions are not intended for users.}

@@ -2,16 +2,22 @@
 \alias{predict.islasso}
 \title{Prediction method for islasso fitted objects}
 \usage{
-\method{predict}{islasso}(object, type = c("link", "response",
-  "coefficients", "class"), newdata, ...)
+\method{predict}{islasso}(object, newdata, type = c("link", "response",
+  "coefficients", "class"), se.fit = FALSE, ci = NULL, level = .95, ...)
 }
 \arguments{
 \item{object}{a fitted object of class "islasso".}
 
+\item{newdata}{optionally, a data frame in which to look for variables with which to predict. If omitted, the fitted linear predictors are used.}
+
 \item{type}{the type of prediction required. The default is on the scale of the linear predictors; the alternative "response" is on the scale of the response variable.
 Thus for a default binomial model the default predictions are of log-odds (probabilities on logit scale) and type = "response" gives the predicted probabilities. The \code{coefficients} option returns coefficients. Type "class" applies only to "binomial" models, and produces the class label.}
 
-\item{newdata}{optionally, a data frame in which to look for variables with which to predict. If omitted, the fitted linear predictors are used.}
+\item{se.fit}{logical switch indicating if confidence intervals are required.}
+
+\item{ci}{optionally, a two columns matrix of estimated confidence intervals for the estimated coefficients.}
+
+\item{level}{the confidence level required.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -38,9 +44,5 @@ Prediction method for islasso fitted objects
  lambda <- 2
  o <- islasso(y~X, family=gaussian, lambda=lambda)
  predict(o)
-
- ###prediction of new dataset
- newdata <- matrix(rnorm(n*p), n, p)
- predict(o, type="response", newdata=newdata)
 }
 }

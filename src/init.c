@@ -6,11 +6,7 @@
 
 static const R_FortranMethodDef FortEntries[] = {
     {"solve", (DL_FUNC) &F77_SUB(solve), 4},
-    {"solve2", (DL_FUNC) &F77_SUB(solve2), 4},
-    {"solve3", (DL_FUNC) &F77_SUB(solve3), 4},
     {"inv", (DL_FUNC) &F77_SUB(inv), 4},
-    {"inv2", (DL_FUNC) &F77_SUB(inv2), 4},
-    {"inv3", (DL_FUNC) &F77_SUB(inv3), 4},
     {"identitylink", (DL_FUNC) &F77_SUB(identitylink), 3},
     {"identitylinkinv", (DL_FUNC) &F77_SUB(identitylinkinv), 3},
     {"identitymueta", (DL_FUNC) &F77_SUB(identitymueta), 3},
@@ -43,6 +39,7 @@ static const R_FortranMethodDef FortEntries[] = {
     {"linear_predictor", (DL_FUNC) &F77_SUB(linear_predictor), 6},
     {"setdiff", (DL_FUNC) &F77_SUB(setdiff), 3},
     {"armijo", (DL_FUNC) &F77_SUB(armijo), 16},
+    {"armijo2", (DL_FUNC) &F77_SUB(armijo2), 14},
     {NULL, NULL, 0}
 };
 

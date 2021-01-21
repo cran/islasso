@@ -4,10 +4,16 @@
 *                          	*
 *********************************
 
+
 ===============
-version 1.1.1
+version 1.2.0
 ===============
-* New implementation of the estimating algorithm. Now islasso is much stabler and faster reducing the number of iterations to reach convergence.
+* New implementation of the estimating algorithm. Now islasso is much stabler and faster. 
+* New function: general linear hypotheses for linear combinations of the regression coefficients, including confidence intervals.
+* New changes:
+- prediction function includes confidence intervals for the fitted values
+- step Halving with Armijo's rule has been improved.
+- convergence criterion has been improved
 * Some bugs fixed.
 
 ===============

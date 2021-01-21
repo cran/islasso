@@ -4,9 +4,9 @@ double precision :: A(n, n), invA(n, n)
 integer :: i, j
 invA = A
 call DPOTRF('U', n, invA, n, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
+!if (info.ne.0) call islasso_trace1_3_2(info)
 call DPOTRI('U', n, invA, n, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
+!if (info.ne.0) call islasso_trace1_3_2(info)
 do j = 1, n
     do i = j + 1, n
         invA(i, j) = invA(j, i)
@@ -14,74 +14,12 @@ do j = 1, n
 end do
 end subroutine inv
 
-subroutine inv2(n, A, invA, info)
-integer :: info,n
-double precision :: A(n, n),invA(n, n)
-integer :: i,j,ipiv(n)
-double precision :: work(n),nwork(n)
-invA = A
-!call DPOTRF('U', n, invA, n, info)
-call DSYTRF('U', n, invA, n, ipiv , work , n, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
-!call DPOTRI('U', n, invA, n, info)
-call DSYTRI('U', n, invA, n, ipiv, nwork, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
-do j = 1, n
-    do i = j + 1, n
-        invA(i, j) = invA(j, i)
-    end do
-end do
-end subroutine inv2
-
-subroutine inv3(n, A, invA, info)
-integer :: info,n
-double precision :: A(n, n),invA(n, n)
-integer :: ipiv(n)
-integer, parameter :: lwork = 100000
-double precision :: work(lwork)
-invA = A
-call DGETRF(n, n, invA, n, ipiv, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
-call DGETRI(n, invA, n, ipiv, work, lwork, info)
-if (info.ne.0) call islasso_trace1_3_2(info)
-!lwork = MIN(lwmax, INT(work(1)))
-!call DGETRI(n, invA, n, ipiv, work, lwork, info)
-!if (info.ne.0) call islasso_trace1_3_2(info)
-!do j = 1, n
-!do i = j + 1, n
-!invA(i, j) = invA(j, i)
-!end do
-!end do
-end subroutine inv3
-
 subroutine solve(A, b, n, info)
 integer :: info, n
 double precision :: A(n, n), b(n, 1)
 call DPOSV('U', n, 1, A, n, b, n, info)
-if (info.ne.0) call islasso_trace1_4_2(info)
+!if (info.ne.0) call islasso_trace1_4_2(info)
 end subroutine solve
-
-subroutine solve2(A, b, n, info)
-integer :: info, n
-double precision :: A(n, n), b(n, 1)
-integer :: ipiv(n),lwork
-integer, parameter :: lwmax = 100000
-double precision :: work(lwmax)
-!call DPOSV('U', n, 1, A, n, b, n, info)
-lwork = -1
-CALL DSYSV('U', n, 1, A, n, ipiv, b, n, work, lwork, info)
-lwork = MIN(lwmax, INT(work(1)))
-CALL DSYSV('U', n, 1, A, n, ipiv, b, n, work, lwork, info)
-if (info.ne.0) call islasso_trace1_4_2(info)
-end subroutine solve2
-
-subroutine solve3(A, b, n, info)
-integer :: info, n
-double precision :: A(n, n), b(n, 1)
-integer :: ipiv(n)
-call DGESV(n, 1, A, n, ipiv, b, n, info)
-if (info.ne.0) call islasso_trace1_4_2(info)
-end subroutine solve3
 
 subroutine crossp(A, xtx, n, p)
 integer :: n, p
@@ -122,12 +60,12 @@ end subroutine tcrossp
 
 subroutine prod1(x,w,xtw,xtx,n,p)
 integer :: n,p
-double precision :: x(n,p),w(n),xtw(p,n),xtw2(n,p),xtx(p,p)
+double precision :: x(n,p),w(n),xtw(p,n),xtx(p,p)
 integer :: i
 do i = 1, p
-    xtw2(:,i) = x(:,i) * w
+    xtw(i,:) = x(:,i) * w
 end do
-xtw = transpose(xtw2)
+!xtw = transpose(xtw2)
 call DGEMM('N', 'N', p, p, n, 1.d0, xtw, p, x, n, 0.d0, xtx, p)
 end subroutine prod1
 
@@ -153,32 +91,78 @@ end subroutine prod1
 !tempMat = transpose(tempMat2)
 !end subroutine prod2
 
-subroutine armijo(beta,dir,dtg,f0,alpha,h,x,y,w,offset,n,p,lambda,eta,res,eps)
-integer :: n,p
-double precision :: beta(p),dir(p),dtg,f0,alpha,x(n,p),y(n),w(n),lambda,eps
-double precision :: offset(n),eta(n),res(n),fn,betan(p),ind,c_1,fac,h
+subroutine armijo(beta, se, dir, f0, alpha, h, x, y, offset, n, p, lambda, &
+& eta, res, pi, xtw)
+integer :: n, p
+double precision :: beta(p), se(p), dir(p), f0, alpha, h, x(n, p), y(n), offset(n)
+double precision :: lambda(p), eta(n), res(n), pi(p), xtw(p, n)
+double precision :: fn, betan(p), fac, grad(p)
 h = 1.d0
-c_1 = 0.01d0
-fac = 0.9d0
+fac = 0.75d0
 eta = 0.d0
-betan = beta + h * dir
-ind = 0.d0
-call linear_predictor(x,betan,eta,offset,n,p)
+betan = beta - h * dir
+call DGEMV('N', n, p, 1.d0, x, n, betan, 1, 0.d0, eta, 1)
+eta = eta + offset
 res = y - eta
-fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + 0.5d0*(1.d0-alpha)*sum(betan**2))
-ind = f0 + c_1 * h * dtg
-do while (fn.gt.ind)
+call gradient(betan, se, lambda, xtw, res, pi, n, p, grad, alpha)
+fn = sqrt(sum(grad**2))
+do while (fn.gt.f0)
     h = fac * h
-    betan = beta + h * dir
-    call linear_predictor(x,betan,eta,offset,n,p)
+    betan = beta - h * dir
+    call DGEMV('N', n, p, 1.d0, x, n, betan, 1, 0.d0, eta, 1)
+    eta = eta + offset
     res = y - eta
-    fn = sum(w * (res**2)) + lambda * (alpha*sum(abs(betan)) + 0.5d0*(1.d0-alpha)*sum(betan**2))
-    ind = f0 + c_1 * h * dtg
-    if(h.le.eps/100.d0) exit
+    call gradient(betan, se, lambda, xtw, res, pi, n, p, grad, alpha)
+    fn = sqrt(sum(grad**2))
+    if(h.le.0.00000001d0) exit
 end do
 beta = betan
 f0 = fn
 end subroutine armijo
+
+subroutine armijo2(beta, se, cov, cov1, s2, f0, alpha, h, n, p, lambda, res, pi, xtw)
+integer :: n, p
+double precision :: beta(p), se(p), cov(p,p), cov1(p,p), s2, f0, alpha, h
+double precision :: lambda(p), res(n), pi(p), xtw(p,n)
+double precision :: fac, covn(p,p), sen(p), grad(p), fn
+integer :: j, err
+h = 1.d0
+fac = 0.75d0
+covn = cov + h * (cov1 - cov)
+do j = 1, p
+    sen(j) = sqrt(s2 * covn(j,j))
+end do
+if(any(isnan(sen))) then
+    sen = se
+    err = 1
+    fn = f0
+else
+    err = 0
+    call gradient(beta, sen, lambda, xtw, res, pi, n, p, grad, alpha)
+    fn = sqrt(sum(grad**2))
+end if
+do while ((fn.gt.f0).or.(err.eq.1))
+    h = fac * h
+    covn = cov + h * (cov1 - cov)
+    do j = 1, p
+        sen(j) = sqrt(s2 * covn(j,j))
+    end do
+    if(any(isnan(sen))) then
+        sen = se
+        err = 1
+        fn = f0
+    else
+        err = 0
+        call gradient(beta, sen, lambda, xtw, res, pi, n, p, grad, alpha)
+        fn = sqrt(sum(grad**2))
+    end if
+    if(h.le.0.00000001d0) exit
+end do
+cov = covn
+se = sen
+f0 = fn
+end subroutine armijo2
+
 
 
 subroutine prod2(xtx,tempMat,invH,cov1,hi,p)
@@ -193,24 +177,26 @@ end do
 end subroutine prod2
 
 
+!subroutine linear_predictor(x,beta,eta,offset,n,p)
+!integer :: n,p
+!double precision :: x(n,p),beta(p),eta(n),offset(n)
+!integer :: i
+!eta = offset
+!eta = 0.d0
+!do i = 1, n
+!    do j = 1, p
+!        eta(i) = eta(i) + sum(x(i,:) * beta)
+!    end do
+!end do
+!end subroutine linear_predictor
+
 subroutine linear_predictor(x,beta,eta,offset,n,p)
 integer :: n,p
 double precision :: x(n,p),beta(p),eta(n),offset(n)
-integer :: i,j
 eta = 0.d0
-do i = 1, n
-    eta(i) = offset(i)
-    do j = 1, p
-        if(beta(j).ne.0.d0) eta(i) = eta(i) + x(i,j) * beta(j)
-    end do
-end do
+call DGEMV('N', n, p, 1.d0, x, n, beta, 1, 0.d0, eta, 1)
+eta = eta + offset
 end subroutine linear_predictor
-
-!subroutine linear_predictor2(x,beta,offset,n,p)
-!integer :: n,p
-!double precision :: x(n,p),beta(p),offset(n)
-!call DGEMV('N', n, p, 1.d0, x, n, beta, 1, 1.d0, offset, 1)
-!end subroutine linear_predictor2
 
 subroutine setdiff(p,iprofile,ind_noprofile)
 integer :: p,iprofile,ind_noprofile(p-1)
