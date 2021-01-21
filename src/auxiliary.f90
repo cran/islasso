@@ -129,30 +129,30 @@ integer :: j, err
 h = 1.d0
 fac = 0.75d0
 covn = cov + h * (cov1 - cov)
+err = 0
 do j = 1, p
     sen(j) = sqrt(s2 * covn(j,j))
+    if((s2 * covn(j,j)).lt.0) err = 1
 end do
-if(any(isnan(sen))) then
+if(err.eq.1) then
     sen = se
-    err = 1
     fn = f0
 else
-    err = 0
     call gradient(beta, sen, lambda, xtw, res, pi, n, p, grad, alpha)
     fn = sqrt(sum(grad**2))
 end if
 do while ((fn.gt.f0).or.(err.eq.1))
     h = fac * h
     covn = cov + h * (cov1 - cov)
+    err = 0
     do j = 1, p
         sen(j) = sqrt(s2 * covn(j,j))
+        if((s2 * covn(j,j)).lt.0) err = 1
     end do
-    if(any(isnan(sen))) then
+    if(err.eq.1) then
         sen = se
-        err = 1
         fn = f0
     else
-        err = 0
         call gradient(beta, sen, lambda, xtw, res, pi, n, p, grad, alpha)
         fn = sqrt(sum(grad**2))
     end if
