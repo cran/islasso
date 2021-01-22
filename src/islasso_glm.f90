@@ -113,12 +113,6 @@ do i = 1, itmax
     if(trace.eq.2) call islasso_trace2_2(tol, i, itmax2, MAXVAL(lambda), f0, dev, n - edf, s2, ind, ind2, ind3, ind4)
     if((trace.eq.1).or.(trace.eq.3)) call islasso_trace2_7(i, itmax2, dev, n - edf, s2, ind3, ind4)
     
-    if(isnan(ind3)) then
-        conv = -1
-        exit
-    end if
-
-    
     ! conv = 0 if abs(se - se0) < tol
     if(ind3.lt.tol) then
         if(trace.ge.1) call islasso_trace1_8()

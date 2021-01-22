@@ -1,6 +1,6 @@
-975a876eb70402861bd2357fe08bac15 *DESCRIPTION
+d8bb68350f2a0bf7d81d735c4a924430 *DESCRIPTION
 5adfa7a20c07431169dde3557250c652 *NAMESPACE
-3e937100489348cb6330245241f2b982 *NEWS
+39883b05f7804028adffe50ce5726dcc *NEWS
 e4d50411200f16f8621ccbe724544998 *R/S3methods_islasso.R
 06e32ea2d3a3aca283fb8b4753d4b801 *R/auxiliary.R
 9e28d3af16495a54f5c15125be250c70 *R/confint_and_auxiliary.R
@@ -18,7 +18,7 @@ b4d7ef3f83bb9c9d2bb316452f228ca9 *man/breast.Rd
 80e3245a2cce96447f5e43a45cc43fc8 *man/diabetes.Rd
 b0d83bc47615c20fe5ae540ac73af3de *man/is.control.Rd
 550022ee553750613a5fe77e429af733 *man/islasso-internal.Rd
-8e14a0d28769981b15ac71623aee8b27 *man/islasso-package.Rd
+b1f9675e6e52c00499d9b77399f78d10 *man/islasso-package.Rd
 38c53e49501fd4c3b59f16e5927e1e3f *man/islasso.Rd
 764c98ba7ae675645543c2a090781794 *man/plot.islasso.Rd
 06da499ce7110bc02aea428c68e5d491 *man/predict.islasso.Rd
@@ -26,13 +26,13 @@ ad1dab6cbbe4427e1d6eb2038c15952f *man/simulXy.Rd
 52819f6945e2e186f4932a0106325c6b *man/summary.islasso.Rd
 b6dc55dafcc24515b7b0b66eda1dbcbf *src/C_FORTRAN_interface.c
 a7344071d8835da953b35269359844a3 *src/Makevars
-593999611220ab3d9fa4703ba8b207a9 *src/auxiliary.f90
+9498e86a956d4081a49e5cfbc763de83 *src/auxiliary.f90
 6718459bf4f28e5dbc8dce5415023863 *src/dev_grad_hess.f90
 2bed1bc82f555a94a0dfb7221bb8d0f2 *src/family.f90
 d44c46b8abfab4d2fb49548ddbcdc753 *src/init.c
 674504972c7cc4152d1ed5da570ead51 *src/islasso.h
 0964e46e059cd730a83bbc97b20f4787 *src/islasso2.f90
-559224cfc72220aeca8e5a11b06633df *src/islasso_glm.f90
+db59c48a034cf06e475621712e23a2b5 *src/islasso_glm.f90
 cd2f05afdede77a7d93c813f83c0631d *src/link.f90
 f58dd2e8b955c2130c8b4aad80ef7e65 *src/standardize.f90
 5038be14f44fc24004085e530104218c *src/trace_islasso.c

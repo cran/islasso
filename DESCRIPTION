@@ -1,7 +1,7 @@
 Package: islasso
 Type: Package
 Title: The Induced Smoothed Lasso
-Version: 1.2.1
+Version: 1.2.2
 Date: 2021-01-21
 Author: Gianluca Sottile [aut, cre], 
 	Giovanna Cilluffo [aut, ctb], 
@@ -14,6 +14,6 @@ URL: https://journals.sagepub.com/doi/abs/10.1177/0962280219842890
 LazyLoad: yes
 NeedsCompilation: yes
 Repository: CRAN
-Packaged: 2021-01-21 19:56:11 UTC; gianlucasottile
+Packaged: 2021-01-22 06:47:06 UTC; gianlucasottile
 RoxygenNote: 7.1.1
-Date/Publication: 2021-01-21 23:20:21 UTC
+Date/Publication: 2021-01-22 09:10:02 UTC

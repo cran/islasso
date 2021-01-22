@@ -131,10 +131,16 @@ fac = 0.75d0
 covn = cov + h * (cov1 - cov)
 err = 0
 do j = 1, p
-    sen(j) = sqrt(s2 * covn(j,j))
-    if((s2 * covn(j,j)).lt.0) err = 1
+    sen(j) = s2 * covn(j,j)
+    if(sen(j).lt.0) then
+        err = 1
+        exit
+    else
+        sen(j) = sqrt(sen(j))
+    end if
 end do
 if(err.eq.1) then
+    covn = cov
     sen = se
     fn = f0
 else
@@ -146,10 +152,16 @@ do while ((fn.gt.f0).or.(err.eq.1))
     covn = cov + h * (cov1 - cov)
     err = 0
     do j = 1, p
-        sen(j) = sqrt(s2 * covn(j,j))
-        if((s2 * covn(j,j)).lt.0) err = 1
+        sen(j) = s2 * covn(j,j)
+        if(sen(j).lt.0) then
+            err = 1
+            exit
+        else
+            sen(j) = sqrt(sen(j))
+        end if
     end do
     if(err.eq.1) then
+        covn = cov
         sen = se
         fn = f0
     else
