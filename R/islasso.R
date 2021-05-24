@@ -292,8 +292,8 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   }
   interval <- if(exists("obj")) range(rev(obj$lambda))*nobs else NULL
   
-  covar <- if(is.null(setting$V0)) diag(0.0, nvars) else setting$V0
-  se <- if(is.null(setting$V0)) rep(1.0, nvars) else sqrt(diag(covar))
+  covar <- if(is.null(setting$V0)) diag(.1, nvars) else setting$V0
+  se <- if(is.null(setting$V0)) rep(sqrt(.1), nvars) else sqrt(diag(covar))
   eta <- family$linkfun(mustart) + offset
   mu <- family$linkinv(eta)
   residuals <- (y - mu) / family$mu.eta(eta)
@@ -392,7 +392,11 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   se <- fit$se
   # dev <- fit$dev
   
-  aic.model <- aic(y, nobs, mu, weights, dev) + 2 * rank
+  # aic.model <- aic(y, nobs, mu, weights, dev) + 2 * rank
+  aic.model <- if((nobs > nvars) & (prep$tempFamily %in% c("gaussian", "binomial", "poisson", "Gamma")))
+    aic(y, nobs, mu, weights, dev) + 2 * rank
+  else
+    dev + 2 * rank
   
   varmu <- variance(mu)
   mu.eta.val <- mu.eta(eta)
@@ -426,9 +430,16 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   names(gradient) <- names(se) <- names(beta) <- colnames(XtX) <- rownames(XtX) <- colnames(covar) <- rownames(covar) <- prep$nms
   
   # internal argument
-  internal <- list(y.internal = y, offset = offset, n = nobs, p = nvars, weights = weights, wt = w, lambda.seq = fit$lambda, XtW = XtW, XtX = XtX, invH = invH, vcov = covar, gradient = gradient, hessian = H, hi = fit$hi, intercept = intercept, unpenalized = prep$unpenalized, fam = fam, link = link, nms = prep$nms, estc = setting$estpai, lmbd.interval = start$interval)
+  internal <- list(y.internal = y, offset = offset, n = nobs, p = nvars, weights = weights, wt = w, lambda.seq = fit$lambda, 
+                   XtW = XtW, XtX = XtX, invH = invH, vcov = covar, gradient = gradient, hessian = H, hi = fit$hi, 
+                   intercept = intercept, unpenalized = prep$unpenalized, fam = fam, link = link, nms = prep$nms, 
+                   estc = setting$estpai, lmbd.interval = start$interval)
   
-  out <- list(coefficients = beta, se = se, residuals = residuals, fitted.values = mu, rank = rank, family = family, linear.predictors = eta, deviance = dev, aic = aic.model, null.deviance = nulldev, iter = fit$itmax, weights = weights, df.residual = resdf, df.null = nulldf, converged = fit$conv, model = NULL, call = NULL, formula = NULL, terms = NULL, data = NULL, offset = offset, control = setting, contrasts = NULL, xlevels = NULL, lambda = start$lambda, alpha = alpha, dispersion = s2, internal=internal)
+  out <- list(coefficients = beta, se = se, residuals = residuals, fitted.values = mu, rank = rank, family = family, 
+              linear.predictors = eta, deviance = dev, aic = aic.model, null.deviance = nulldev, iter = fit$itmax, 
+              weights = weights, df.residual = resdf, df.null = nulldf, converged = fit$conv, model = NULL, call = NULL, 
+              formula = NULL, terms = NULL, data = NULL, offset = offset, control = setting, contrasts = NULL, xlevels = NULL, 
+              lambda = start$lambda, alpha = alpha, dispersion = s2, internal=internal)
   
   out
 }
@@ -492,10 +503,11 @@ aic.islasso <- function(object, method = c("aic", "bic"), interval, y, X, interc
         temp <- Inf #.Machine$double.xmax
     }
     else{
-        temp <- if((n > p) & (family$family %in% c("gaussian", "binomial", "poisson", "Gamma")))
-          if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
-        else
-          obj$deviance + k * obj$rank
+      temp <- if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
+        # temp <- if((n > p) & (family$family %in% c("gaussian", "binomial", "poisson", "Gamma")))
+        #   if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
+        # else
+        #   obj$deviance + k * obj$rank
     }
     #if(trace) print(c(lambda, temp))
     cat("lambda = ", formatC(lambda, digits = 4, width = 8, format = "f"), method, "= ", formatC(temp, digits = 5, width = 10, format = "f"), "\n")

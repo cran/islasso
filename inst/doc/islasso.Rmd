@@ -1,0 +1,161 @@
+---
+title: "An Introduction to `islasso`"
+author:
+  - Gianluca Sottile
+  - Giovanna Cilluffo
+  - Vito M.R. Muggeo
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+link-citations: true
+output:
+  pdf_document:
+    fig_caption: yes
+    toc: yes
+    toc_depth: 3
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: TRUE
+      smooth_scroll: TRUE
+vignette: >
+  %\VignetteIndexEntry{An Introduction to islasso}
+  \usepackage[utf8]{inputenc}
+  %\VignetteEngine{knitr::rmarkdown}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", message = FALSE, cache = TRUE, comment = ">", tidy = TRUE, warning = FALSE)
+# the code in this chunk enables us to truncate the print output for each
+# chunk using the `out.lines` option
+# save the built-in output hook
+hook_output <- knitr::knit_hooks$get("output")
+
+# set a new output hook to truncate text output
+knitr::knit_hooks$set(output = function(x, options) {
+  if (!is.null(n <- options$out.lines)) {
+    x <- xfun::split_lines(x)
+    if (length(x) > n) {
+        
+      # truncate the output
+      x <- c(head(x, n), "....\n")
+    }
+    x <- paste(x, collapse = "\n")
+  }
+  hook_output(x, options)
+})
+```
+
+# Abstract
+In this short note we present and briefly discuss the R package islasso dealing with regression models having a large number of covariates. Estimation is carried out by penalizing the coefficients via a quasi-lasso penalty, wherein the nonsmooth lasso penalty is replaced by its smooth counterpart determined iteratively by data according to the induced smoothing idea. The package includes functions to estimate the model and to test for linear hypothesis on linear combinations of relevant coefficients. We illustrate R code throughout a worked example, by avoiding intentionally to report details and extended bibliography.
+
+# Introduction
+Let $\mathbf{y} = \mathbf{X}\beta + \mathbf{\epsilon}$ be the linear model of interest with usual zero-means and homoscedastic errors. As usual, $\mathbf{y} = (y_1,\ldots,y_n)^T$ is the response vector, $\mathbf{X}$ is the $n \times p$ design matrix (having $p$ quite large) with regression coefficients $\mathbf{\beta}$. When interest lies in selecting the non-noise covariates and estimating the relevant effect, one assumes the lasso penalized objective function (Tibshirani, 1996),
+$$\frac{1}{2}||\mathbf{y}-\mathbf{X}\mathbf{\beta}||_2^2+\lambda||\mathbf{\beta}||_1$$
+
+# The R functions
+The main function of the package is _islasso()_ where the user supplies the model formula as in the usual _lm_ or _glm_ functions, i.e.
+
+```{r, dont-eval, eval=FALSE}
+islasso(formula, family = gaussian, lambda, alpha = 1, data, weights, subset,
+        offset, unpenalized, contrasts = NULL, control = is.control())
+```
+
+_family_ accepts specification of family and link function as in Table 1, _lambda_ is the tuning parameter and _unpenalized_ allows to indicate covariates with unpenalized coefficients.
+
+__Table 1. Families and link functions allowed in islasso__
+
+| family | link |
+|:-------|:----:|
+| gaussian | identity |
+| binomial | logit, probit |
+| poisson | log |
+| gamma | identity, log, inverse |
+
+The fitter function is \verb|is.lasso.fit()| which reads as
+
+```{r, dont-eval1, eval=FALSE}
+islasso.fit(X, y, family = gaussian, lambda, alpha = 1, intercept = FALSE, 
+    weights = NULL, offset = NULL, unpenalized = NULL, control = is.control()) 
+```
+
+which actually implements the estimating algorithm as described in the paper. The _lambda_ argument in _islasso.fit_ and _islasso_ specifies the positive tuning parameter in the penalized objective. Any non-negative value can be provided, but if missing, it is computed via $K$-fold cross validation by the function _cv.glmnet()_ from package __glmnet__. The number of folds being used can be specified via the argument _nfolds_ of the auxiliary function _is.control()_.
+
+# A worked example: the Diabetes data set
+We use the well-known __diabetes__ dataset available in the __lars__ package. The data refer to $n = 442$ patients enrolled to investigate a measure of disease progression one year after the baseline. There are ten covariates, (age, sex, bmi (body mass index), map (average blood pressure) and several blood serum measurements (tc, ldl, hdl, tch, ltg, glu). The matrix _x2_ in the dataframe also includes second-order terms, namely first-order interactions between covariates, and quadratic terms for the continuous variables. 
+
+To select the important terms in the regression equation we apply the lasso 
+
+```{r}
+library(lars)
+library(glmnet)
+
+data("diabetes", package = "lars")
+
+a1 <- with(diabetes, cv.glmnet(x2, y))
+n <- nrow(diabetes)
+a1$lambda.min * n
+
+b <- drop(coef(a1, "lambda.min", exact = TRUE))
+length(b[b != 0])
+```
+
+Ten-fold cross validation "selects" $\lambda=$ `r round(a1$lambda.min * n, 3)`. corresponding to `r length(b[b != 0])` non null coefficients
+
+```{r, fold.source = TRUE}
+names(b[b != 0])
+```
+
+The last six estimates are
+
+```{r}
+tail(b[b != 0])
+```
+
+A reasonable question is if all the "selected" coefficients are significant in the model. Unfortunately lasso regression does not return standard errors due to nonsmoothness of objective, and some alternative approaches have been proposed., including the  (Lockhart et al., 2013). Among the (few) strategies, including the 'covariance test', the 'post-selection inference' and the '(modified) residual bootstrap', here we illustrate the R package __islasso__ implementing the recent `quasi' lasso approach based on the induced smoothing idea (Brown and Wang, 2005) as discussed in Cilluffo et al. (2019) 
+
+While the optimal lambda could be selected (without supplying any value to _lambda_), we use optimal value minimizing the AIC 
+
+```{r}
+library(islasso)
+out <- islasso(y ~ x2, data = diabetes, lambda = a1$lambda.min * n)
+```
+
+The __summary__ method quickly returns the main output of the fitted model, including point estimates, standard errors and $p$-values. Visualizing estimates for all covariates could be somewhat inconvenient, especially when the number of covariates is large, thus we decide to print estimates only if the pvalue is less than a threshold value. We use _0.50_
+
+```{r}
+summary(out, pval = 0.10)
+```
+
+In addition to the usual information printed by the summary method, the output also includes the column _Df_ representing the degrees of freedom of each coefficient. Their sum is used to quantify the model complexity 
+
+```{r}
+sum(out$internal$hi)
+```
+
+and the corresponding residual degrees of freedom (`r out$internal$n-out$rank`) as reported above. The Wald test (column _z value_) and $p$-values can be used to assess important or significant covariates. Results suggest that the value of the minimum lambda choosn by the cross validation procedure of glmnet was too high, hence as an alternative, it is also possible to select the tuning parameter $\lambda$ by means the Bayesian or Akaike Information Criterion. The function _aic.islasso_, requires an islasso fit object and specification of the criterion to be used (AIC/BIC). Hence
+
+```{r}
+lmb.bic <- aic.islasso(out, method = "bic", interval = c(1, 100))
+out1 <- update(out, lambda = lmb.bic)
+summary(out1, pval = .05)
+```
+
+Comparisons between methods to select the tuning parameter and further discussions  We conclude this short note by emphasizing that __islasso__ also accepts the so-called elastic-net penalty, such that 
+$$
+\frac{1}{2}||\mathbf{y}- \mathbf{X\beta}||_2^{2}+\lambda \{ \alpha ||\mathbf{\beta} ||^{}_1 + \frac{1}{2}(1-\alpha) ||\mathbf{\beta} ||^{2}_2 \}
+$$ 
+where $0\le \alpha\le 1$ is the mixing parameter to be specified in _islasso()_ and _islasso.fit()_ via the argument _alpha_, e.g.
+
+```{r}
+out2 <- update(out, alpha = .5)
+lmb.bic <- aic.islasso(out2, method = "bic", interval = c(1, 100))
+out3 <- update(out, lambda = lmb.bic)
+summary(out3, pval = .05)
+```
+
+# References
+
++ Tibshirani R. _Regression shrinkage and selection via the lasso_. J R Stat Soc: Series B 1996; 58: 267–288
++ Cilluffo, G, Sottile, G, La Grutta, S and Muggeo, VMR (2019) _The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression_. Statistical Methods in Medical Research, online doi: 10.1177/0962280219842890.
++ Brown B and Wang Y. _Standard errors and covariance matrices for smoothed rank estimators_. Biometrika 2005; 92:
+149–158.

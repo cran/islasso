@@ -153,6 +153,7 @@ y <- rbinom(n, 100, mu)
 y <- cbind(y, 100-y)
 
 o <- islasso(y~X, family=binomial)
+summary(o, pval = .05)
 
 ##### poisson ######
 coef <- c(c(1,1,1), rep(0, p-3))
@@ -162,6 +163,7 @@ mu <- poisson()$linkinv(eta)
 y <- rpois(n, mu)
 
 o <- islasso(y~X, family=poisson)
+summary(o, pval = .05)
 
 ##### Gamma ######
 coef <- c(c(1,1,1), rep(0, p-3))
@@ -172,8 +174,8 @@ shape <- 10
 phi <- 1 / shape
 y <- rgamma(n, scale = mu / shape, shape = shape)
 
-o <- islasso(y~X, family=Gamma(link="log"), lambda = 1)
-
+o <- islasso(y~X, family=Gamma(link="log"))
+summary(o, pval = .05)
 }
 }
 \keyword{models}

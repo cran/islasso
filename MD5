@@ -1,15 +1,19 @@
-d8bb68350f2a0bf7d81d735c4a924430 *DESCRIPTION
+a36ee5a74665fadf462b8fb34071a85f *DESCRIPTION
 5adfa7a20c07431169dde3557250c652 *NAMESPACE
-39883b05f7804028adffe50ce5726dcc *NEWS
+f151d6d3a55fc192c390d6a5963c0cb5 *NEWS
 e4d50411200f16f8621ccbe724544998 *R/S3methods_islasso.R
 06e32ea2d3a3aca283fb8b4753d4b801 *R/auxiliary.R
 9e28d3af16495a54f5c15125be250c70 *R/confint_and_auxiliary.R
-e23a9b159dbf5b8833a493d1679424ca *R/islasso.R
+b4ad734a6491c971ed2acc87c9c955de *R/islasso.R
+1dda34b6c99d2d48bcf20dfeb021b79b *build/vignette.rds
 0b63bf337858528a9e3d2559080e2189 *data/Prostate.rda
 f5941e4d6e3985ad8657abfb91326447 *data/breast.RData
 95f8b6f42c5936ba7e28cc2b526aa1f5 *data/datalist
 e68a425fe1f250d062cd69c4e3e8769a *data/diabetes.RData
 7fabc2ddb551d76c2c872217d1381cbb *inst/CITATION
+f69edc3e082060a85895e4e85315bba4 *inst/doc/islasso.R
+b4a87227f437bde5a049d3a409463da7 *inst/doc/islasso.Rmd
+1e406e136d57c2ca99ef869879a6c367 *inst/doc/islasso.pdf
 d9f9d0825b7e7ebcac8222cb1313926c *man/Prostate.Rd
 be8dbc4f684e2f191ccf4d404e661c18 *man/aic.islasso.Rd
 0348a2970b78685b4092f89c67f415ec *man/anova.islasso.Rd
@@ -18,8 +22,8 @@ b4d7ef3f83bb9c9d2bb316452f228ca9 *man/breast.Rd
 80e3245a2cce96447f5e43a45cc43fc8 *man/diabetes.Rd
 b0d83bc47615c20fe5ae540ac73af3de *man/is.control.Rd
 550022ee553750613a5fe77e429af733 *man/islasso-internal.Rd
-b1f9675e6e52c00499d9b77399f78d10 *man/islasso-package.Rd
-38c53e49501fd4c3b59f16e5927e1e3f *man/islasso.Rd
+e4e2bffaa7d4f2401becb3691fc7f3b2 *man/islasso-package.Rd
+9fb3db281817d9388df6bbae26ac801d *man/islasso.Rd
 764c98ba7ae675645543c2a090781794 *man/plot.islasso.Rd
 06da499ce7110bc02aea428c68e5d491 *man/predict.islasso.Rd
 ad1dab6cbbe4427e1d6eb2038c15952f *man/simulXy.Rd
@@ -27,7 +31,7 @@ ad1dab6cbbe4427e1d6eb2038c15952f *man/simulXy.Rd
 b6dc55dafcc24515b7b0b66eda1dbcbf *src/C_FORTRAN_interface.c
 a7344071d8835da953b35269359844a3 *src/Makevars
 9498e86a956d4081a49e5cfbc763de83 *src/auxiliary.f90
-6718459bf4f28e5dbc8dce5415023863 *src/dev_grad_hess.f90
+0afbf17897269ff74d272c4cf92491b3 *src/dev_grad_hess.f90
 2bed1bc82f555a94a0dfb7221bb8d0f2 *src/family.f90
 d44c46b8abfab4d2fb49548ddbcdc753 *src/init.c
 674504972c7cc4152d1ed5da570ead51 *src/islasso.h
@@ -36,3 +40,4 @@ db59c48a034cf06e475621712e23a2b5 *src/islasso_glm.f90
 cd2f05afdede77a7d93c813f83c0631d *src/link.f90
 f58dd2e8b955c2130c8b4aad80ef7e65 *src/standardize.f90
 5038be14f44fc24004085e530104218c *src/trace_islasso.c
+b4a87227f437bde5a049d3a409463da7 *vignettes/islasso.Rmd
