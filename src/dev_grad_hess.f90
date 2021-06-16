@@ -15,7 +15,7 @@ grad = 0.d0
 call DGEMV('N', p, n, 1.d0, xtw, p, res, 1, 0.d0, grad, 1)
 grad = -grad
 k = 0.d0
-if (alpha.eq.1.0d0) k = 0.05d0
+if (alpha.eq.1.0d0) k = 0.05d0 / n
 do i = 1, p
     !grad(i) = - dot_product(xtw2(i,:),res)
 !    grad(i) = -dot_product(xtw2(:,i), res)
@@ -25,14 +25,14 @@ do i = 1, p
 end do
 end subroutine gradient
 
-subroutine hessian(theta,se,lambda,xtx,pi,p,hess,alpha)
+subroutine hessian(theta,se,lambda,xtx,pi,p,n,hess,alpha)
 implicit none
-integer :: p,i
+integer :: p,i,n
 double precision :: theta(p),se(p),lambda(p),xtx(p,p),pi(p),hess(p,p)
 double precision :: dnm,temp1,alpha,k
 hess = xtx
 k = 0.d0
-if (alpha.eq.1.0d0) k = 0.05d0
+if (alpha.eq.1.0d0) k = 0.05d0 / n
 do i = 1, p
     temp1 = theta(i) / se(i)
     hess(i,i) = hess(i,i) + 2.d0 * lambda(i) * alpha * ( pi(i) * dnm(temp1, 0.d0, 1.d0) + &

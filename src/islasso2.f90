@@ -60,7 +60,7 @@ do i = 1, itmax
     f0_old = f0
 
     ! computing NR step with step halving search with armijo rule
-    call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
+    call hessian(theta, se0, lambdaadapt, xtx, pi, p, n, hess, alpha)
     call gradient(theta, se0, lambdaadapt, xtw, res, pi, n, p, grad, alpha)
     call solve(hess, grad, p, info)
     if(info.ne.0) then
@@ -73,7 +73,7 @@ do i = 1, itmax
     dev = sum(weights * (res**2))
 
     ! updating components for variance covariance matrix
-    call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
+    call hessian(theta, se0, lambdaadapt, xtx, pi, p, n, hess, alpha)
     call inv(p, hess, invH, info)
     if(info.ne.0) then
         theta = theta0

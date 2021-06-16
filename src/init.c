@@ -27,7 +27,7 @@ static const R_FortranMethodDef FortEntries[] = {
     {"gamma_variance", (DL_FUNC) &F77_SUB(gamma_variance), 3},
     {"family", (DL_FUNC) &F77_SUB(family), 6},
     {"gradient", (DL_FUNC) &F77_SUB(gradient), 10},
-    {"hessian", (DL_FUNC) &F77_SUB(hessian), 8},
+    {"hessian", (DL_FUNC) &F77_SUB(hessian), 9},
     {"islasso2", (DL_FUNC) &F77_SUB(islasso2), 29},
     {"islasso_glm", (DL_FUNC) &F77_SUB(islasso_glm), 30},
     {"standardize", (DL_FUNC) &F77_SUB(standardize), 6},

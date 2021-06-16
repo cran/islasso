@@ -404,7 +404,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   residuals <- (y - mu) / mu.eta.val
   XtW <- t(w * X)
   XtX <- XtW %*% X
-  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, hess = XtX, alpha)$hess
+  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, nobs, hess = XtX, alpha)$hess
   invH <- .Fortran(C_inv, nvars, H, invA = H, integer(1))$invA
   
   # null model
