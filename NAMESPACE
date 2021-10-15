@@ -2,35 +2,70 @@ useDynLib(islasso, .registration = TRUE, .fixes = "C_")
 
 import(glmnet, stats)
 importFrom(graphics, abline, legend, lines, par, plot,
-	points, segments, axis, text)
+	points, segments, axis, text, matplot)
 importFrom(utils, setTxtProgressBar, txtProgressBar)
 importFrom(Matrix, forceSymmetric)
 
-export(islasso, is.control, islasso.fit, 
-	print.islasso, summary.islasso, plot.islasso, 
-	predict.islasso, anova.islasso, print.anova.islasso, 
-	logLik.islasso, residuals.islasso, fitted.islasso, 
+export(is.control, 
+	islasso, islasso.fit, aic.islasso,
+	print.islasso, summary.islasso, plot.islasso, model.matrix.islasso, 
+	predict.islasso,	residuals.islasso, fitted.islasso, 
 	coef.islasso, AIC.islasso, deviance.islasso, vcov.islasso,
-	print.logLik.islasso, aic.islasso, modelX, simulXy,
-	model.matrix.islasso, confint.islasso, print.confint.islasso, 
-	plot.confint.islasso)
+	anova.islasso, print.anova.islasso, 
+	logLik.islasso, print.logLik.islasso, 
+
+	islasso.path, islasso.path.fit, GoF.islasso.path,
+	print.islasso.path, summary.islasso.path, plot.islasso.path, 
+	model.matrix.islasso.path, predict.islasso.path, 
+	residuals.islasso.path, fitted.islasso.path, 
+	coef.islasso.path, deviance.islasso.path,
+	logLik.islasso.path, print.logLik.islasso.path, 
+
+	modelX, simulXy,
+
+	confint.islasso, print.confint.islasso, plot.confint.islasso)
 
 S3method(print, islasso)
 S3method(print, logLik.islasso)
+S3method(print, islasso.path)
+S3method(print, logLik.islasso.path)
+
 S3method(summary, islasso)
 S3method(print, summary.islasso)
+S3method(summary, islasso.path)
+S3method(print, summary.islasso.path)
+
 S3method(coef, islasso)
+S3method(coef, islasso.path)
+
 S3method(vcov, islasso)
+
 S3method(logLik, islasso)
+S3method(logLik, islasso.path)
+
 S3method(residuals, islasso)
+S3method(residuals, islasso.path)
+
 S3method(fitted, islasso)
+S3method(fitted, islasso.path)
+
 S3method(AIC, islasso)
+
 S3method(deviance, islasso)
+S3method(deviance, islasso.path)
+
 S3method(plot, islasso)
+S3method(plot, islasso.path)
+
 S3method(predict, islasso)
+S3method(predict, islasso.path)
+
 S3method(anova, islasso)
 S3method(print, anova.islasso)
+
 S3method(model.matrix, islasso)
+S3method(model.matrix, islasso.path)
+
 S3method(confint, islasso)
 S3method(print, confint.islasso)
 S3method(plot, confint.islasso)

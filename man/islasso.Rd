@@ -128,7 +128,8 @@ eta <- drop(X\%*\%coef)
 mu <- eta
 y <- mu + rnorm(n, 0, sigma)
 
-o <- islasso(y~-1+X, family=gaussian)
+o <- islasso(y ~ ., data = data.frame(y = y, X), 
+             family = gaussian())
 o
 summary(o)
 coef(o)
@@ -142,7 +143,8 @@ logLik(o)
 
 \dontrun{
 # for the interaction
-o <- islasso(y~-1+X[,1]*X[,2], family=gaussian)
+o <- islasso(y ~ X1 * X2, data = data.frame(y = y, X), 
+             family = gaussian())
 
 ##### binomial ######
 coef <- c(c(1,1,1), rep(0, p-3))
@@ -152,7 +154,9 @@ mu <- binomial()$linkinv(eta)
 y <- rbinom(n, 100, mu)
 y <- cbind(y, 100-y)
 
-o <- islasso(y~X, family=binomial)
+o <- islasso(cbind(y1, y2) ~ ., 
+             data = data.frame(y1 = y[,1], y2 = y[,2], X), 
+             family = binomial())
 summary(o, pval = .05)
 
 ##### poisson ######
@@ -162,7 +166,8 @@ eta <- drop(cbind(1, X)\%*\%c(1, coef))
 mu <- poisson()$linkinv(eta)
 y <- rpois(n, mu)
 
-o <- islasso(y~X, family=poisson)
+o <- islasso(y ~ ., data = data.frame(y = y, X), 
+             family = poisson())
 summary(o, pval = .05)
 
 ##### Gamma ######
@@ -174,7 +179,8 @@ shape <- 10
 phi <- 1 / shape
 y <- rgamma(n, scale = mu / shape, shape = shape)
 
-o <- islasso(y~X, family=Gamma(link="log"))
+o <- islasso(y ~ ., data = data.frame(y = y, X), 
+             family = Gamma(link = "log"))
 summary(o, pval = .05)
 }
 }

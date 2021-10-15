@@ -26,8 +26,18 @@ printCoefmat2(x, digits = max(3L, getOption("digits") - 2L),
   family, intercept, setting)
 .islasso(prep, start, Lambda, fam, link)
 
+checkinput.islasso.path(X, y, family, lambda, nlambda, lambda.min.ratio, 
+  alpha, intercept, weights, offset, unpenalized, control)
+startpoint.islasso.path(X, y, lambda, alpha, weights, offset, mustart, 
+  family, intercept, setting)
+islasso.path.fit.glm(prep, start, lambda, fam, link)
+islasso.path.fitter2(b, se, c, fix.c, l, alpha, x, y, weights, sigma2, 
+  cov.unscaled, n, intercept, tol, unpenalized, offset, family, maxIter)
+interpolate(y1, y2, x1, x2, x.new)
+
 cislasso(object, a, ci)
-ci.fitted.islasso(object, newx, ci = NULL, conf.level=.95, only.ci = FALSE)
+ci.fitted.islasso(object, newx, ci = NULL, conf.level=.95, 
+  only.ci = FALSE)
 }
 \author{Gianluca Sottile (\email{gianluca.sottile@unipa.it})}
 \details{These functions are not intended for users.}

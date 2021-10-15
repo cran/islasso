@@ -1,4 +1,6 @@
 confint.islasso <- function(object, parm, level = 0.95, ...){
+  type.ci <- "WALD"
+  
   cf <- coef(object)
   pnames <- names(cf)
   if(missing(parm)) parm <- seq_along(cf)
@@ -9,9 +11,32 @@ confint.islasso <- function(object, parm, level = 0.95, ...){
   fac <- qnorm(a)
   pct <- format.perc(a, 3)
   ci <- array(NA, dim = c(length(parm), 2L), dimnames = list(pnames[parm], pct))
-  ses <- object$se
-  ci[] <- cf[parm] + ses[parm] %o% fac
- 
+  
+  # if(type.ci == "wald"){
+    ses <- object$se
+    ci[] <- cf[parm] + ses[parm] %o% fac
+  # }
+  # else{
+  #   if(trace) cat("\nProfiling ...\n")
+  #   parm2 <- parm
+  #   np <- length(parm2)
+  #   if(trace) {
+  #     pb <- txtProgressBar(min=0, max=np, style=3)
+  #     on.exit(close(pb))
+  #   }
+  #   for(.i in 1:np){
+  #     if(trace) setTxtProgressBar(pb, .i)
+  #     ic <- try(confint.profile.islasso2(object, parm2[.i], conf.level = level, refit = refit, ...)$ic, silent = TRUE)
+  #     del <- .001
+  #     while((class(ic) == "try-error" | any(is.na(ic))) & del < 40){
+  #       del <- del * 5
+  #       ic <- try(confint.profile.islasso2(object, parm2[.i], conf.level = level, refit = refit, del = del, ...)$ic, silent = TRUE)
+  #     }
+  #     ci[.i, ] <- ic
+  #   }
+  #   cat("\n")
+  # }
+  
   attr(ci, "coefficients") <- coef(object)[parm]
   attr(ci, "level") <- level
   class(ci) <- "confint.islasso"
@@ -153,6 +178,7 @@ cislasso <- function(object, a, ci){
 }
 
 ci.fitted.islasso <- function(object, newx, ci = NULL, conf.level=.95, only.ci = FALSE){
+  type.ci <- "wald"
   if(missing(newx)) newx <- model.matrix(object)
   if(is.null(ci)) ci <- confint.islasso(object, level = conf.level)
   if(only.ci) return(ci)
@@ -162,3 +188,4 @@ ci.fitted.islasso <- function(object, newx, ci = NULL, conf.level=.95, only.ci =
   rownames(ris) <- rownames(newx)
   ris
 } 
+

@@ -20,9 +20,16 @@ summary method for islasso fitted objects
 
 \item{...}{not used}
 }
+\author{
+Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
+}
+
+\seealso{
+\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
+}
 \examples{
 \dontrun{
 #continues example from ?islasso
-summary(o, pval=.1) #print just the "borderline" significant coefficients
+summary(o, pval = .1) #print just the "borderline" significant coefficients
 }
 }

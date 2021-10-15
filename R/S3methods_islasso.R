@@ -13,12 +13,10 @@ print.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), ...){
 
 summary.islasso <- function(object, pval=1, use.t=FALSE, ...){
   temp <- list(...)
+  type.pval <- "wald"
   
-  #if(is.null(temp$unbias)) temp$unbias <- FALSE
-  #if(temp$unbias & is.null(object$beta.unbias)) stop("No unbias estimates in the model")
-  
-  coef <- object$coef #if(!temp$unbias) object$coef else object$beta.unbias
-  se <- object$se #if(!temp$unbias) object$se else object$se.unbias
+  coef <- object$coef 
+  se <- object$se 
   aic <- object$aic
   n <- object$internal$n
   p <- object$internal$p
@@ -29,7 +27,14 @@ summary.islasso <- function(object, pval=1, use.t=FALSE, ...){
   df <- c(object$internal$p, rdf)
   h <- object$internal$hi
   if(object$family$family != "gaussian") use.t <- FALSE
-  chival <- (coef / se)
+  
+  # if(type.pval == "wald"){
+    chival <- (coef / se)
+  # }
+  # else{
+  #   parm <- seq_along(coef)
+  #   chival <- sapply(parm, function(i) profile.islasso(object, parm = i, beta0 = 0))
+  # }
   coefficients <- round(cbind(coef, se, h, chival), 6)
   type <- if(use.t) "t value" else "z value"
   pvalue <- if(type == "t value") 2 * pt(abs(chival), rdf, lower.tail = FALSE) else 2 * pnorm(-abs(chival))
@@ -137,10 +142,9 @@ plot.islasso <- function(x, ...){
 }
 
 predict.islasso <- function(object, newdata, type=c("link", "response", "coefficients", "class"), 
-                            se.fit = FALSE, ci = NULL, level = .95, ...){
-  # beta <- as.matrix(coef(object))
-  # intercept <- object$internal$intercept
+                            se.fit = FALSE, level = .95, ...){
   type <- match.arg(type)
+  type.ci <- "WALD"
   family <- object$family
   
   tt <- terms(object)
@@ -163,15 +167,6 @@ predict.islasso <- function(object, newdata, type=c("link", "response", "coeffic
   predictor <- drop(X %*% beta)
   if (!is.null(offset)) predictor <- predictor + offset
   
-  # if(missing(newdata)){
-  #   X <- model.matrix(object)
-  # }else{
-  #   X <- as.matrix(newdata)
-  #   if(!all(colnames(X) %in% rownames(beta))) stop("'newdata' must contain all X-variables")
-  #   if(intercept) X <- cbind(1, X)
-  # }
-  
-  # if(nrow(beta) != ncol(X)) stop("the length of the vector 'beta' is not equal to the number of columns of the matrix 'X'")
   if(type == "class" & family$family != "binomial") stop(gettextf("Type 'class' is available only for the %s family", sQuote(family$family)), domain=NA)
   
   out <- switch(type,
@@ -184,8 +179,8 @@ predict.islasso <- function(object, newdata, type=c("link", "response", "coeffic
   
   if(se.fit){
     ci.fit <- NULL
-    if(type %in% c("link", "response")) ci.fit <- ci.fitted.islasso(object, X, ci, conf.level = level)
-    if(type == "coefficients") ci.fit <- ci.fitted.islasso(object, X, ci, conf.level = level, only.ci = TRUE)
+    if(type %in% c("link", "response")) ci.fit <- ci.fitted.islasso(object, X, NULL, conf.level = level)
+    if(type == "coefficients") ci.fit <- ci.fitted.islasso(object, X, NULL, conf.level = level, only.ci = TRUE)
     
     out.ci <- switch(type,
                      "link"={ci.fit},

@@ -354,14 +354,22 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   storage.mode(setting$sigma2) <- "double"
   
   fit <- if(prep$tempFamily == "gaussian"){
-    .Fortran(C_islasso2, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda, alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), stand = setting$stand, intercept = intercept, eta = eta, mu = mu, res = residuals, dev = double(1), weights = weights, hi = double(nvars), edf = double(1), grad = double(nvars))
+    .Fortran(C_islasso3, X = X, y = y, n = nobs, p = nvars, ntheta = beta+.01, se = se, cov = covar, lambda = Lambda, 
+             alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, 
+             phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
+             stand = setting$stand, intercept = intercept, eta = eta, mu = mu, res = residuals, dev = double(1), weights = weights, 
+             hi = double(nvars), edf = double(1), grad = double(nvars))
   }else{
-    .Fortran(C_islasso_glm, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda, alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), stand = setting$stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights, hi = double(nvars), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(nvars))
+    .Fortran(C_islasso_glm2, X = X, y = y, n = nobs, p = nvars, ntheta = beta+.01, se = se, cov = covar, lambda = Lambda, 
+             alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, 
+             phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
+             stand = setting$stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights, 
+             hi = double(nvars), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(nvars))
   }
   if(fit$conv == -1) stop("Infinite values attained, try to change lambda value!!")
   if(fit$conv == 1) warning("Maximum number of iterations attained!!")
-  if(fit$conv == 2) stop("Exit from lm algorithm after an inversion problem or a step halving too small, try to change lambda value!!")
-  if(fit$conv == 3) stop("Safe exit from glm algorithm after an inversion problem or a step halving too small, try to change lamda value!!")
+  # if(fit$conv == 2) stop("Exit from lm algorithm after an inversion problem or a step halving too small, try to change lambda value!!")
+  if(fit$conv == 2) stop("Safe exit from ISLASSO algorithm after an inversion problem, try to change lamda value!!")
   
   setting$c <- fit$pi
   
@@ -375,7 +383,6 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   linkfun <- family$linkfun
   
   # extract from fit
-  gradient <- fit$grad
   rank <- fit$edf
   iter <- fit$itmax
   conv <- fit$conv
@@ -402,9 +409,19 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   mu.eta.val <- mu.eta(eta)
   w <- (weights * mu.eta.val^2) / varmu
   residuals <- (y - mu) / mu.eta.val
+  
+  fn0 <- function(grad, b, s, c, lambda, alpha, unpenalized) {
+    bsc <- (b / s)
+    # grad <- crossprod(x, y - drop(x %*% b))
+    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) + (1 - alpha) * b
+    if(any(unpenalized)) r[unpenalized] <- 0
+    return(drop(- grad + lambda * r))
+  }
+  gradient <- fn0(grad = crossprod(X, w * residuals), beta, se, setting$c, start$lambda, alpha, prep$unpenalized)
+  
   XtW <- t(w * X)
   XtX <- XtW %*% X
-  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, nobs, hess = XtX, alpha)$hess
+  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, hess = XtX, alpha)$hess
   invH <- .Fortran(C_inv, nvars, H, invA = H, integer(1))$invA
   
   # null model
@@ -444,16 +461,17 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   out
 }
 
-is.control <- function(sigma2 = -1, tol = 1e-05, itmax = 500, stand = FALSE,
-                       trace = 0, nfolds = 5, seed = NULL, adaptive = FALSE, #, debias = FALSE
-                       b0 = NULL, V0 = NULL, c = 0.5){
+is.control <- function(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
+                       trace = 0, nfolds = 5, seed = NULL, adaptive = FALSE, g = .5,
+                       b0 = NULL, V0 = NULL, c = -1){
   
   list(sigma2 = sigma2, tol = tol, itmax = itmax, trace = trace, stand = stand, nfolds = nfolds, seed = seed,#, debias=debias
-       adaptive = adaptive, b0 = b0, V0 = V0, c = c)
+       adaptive = adaptive, g = g, b0 = b0, V0 = V0, c = c)
 }
 
-aic.islasso <- function(object, method = c("aic", "bic"), interval, y, X, intercept = FALSE, family = gaussian(), 
-                        alpha = 1, offset, weights, unpenalized, control = is.control(), trace = TRUE){
+aic.islasso <- function(object, method = c("AIC", "BIC", "AICc", "GCV", "GIC"), interval, g = 0,
+                        y, X, intercept = FALSE, family = gaussian(), alpha = 1, offset, weights, 
+                        unpenalized, control = is.control(), trace = TRUE){
   
   if(missing(object)){
     if(missing(interval)) stop("please specify an interval to search for a minimum")
@@ -487,12 +505,19 @@ aic.islasso <- function(object, method = c("aic", "bic"), interval, y, X, interc
     offset <- object$internal$offset
     weights <- object$internal$weights
     control <- object$control
-    if(object$internal$estc) control$pai <- -1
+    if(control$estpai) control$c <- -1
   }
   control$trace <- 0
   
   method <- match.arg(method)
-  k <- switch(method, "aic" = 2, "bic" = log(n))
+  k <- switch(method, 
+              "AIC" = "ll + 2 * df", 
+              "BIC" = "ll + (log(n) + 2 * g * log(p)) * df", 
+              "AICc" = "ll + 2 *  n * df * (df + 1) / (n - df - 1) + 2 * df", 
+              "GCV" = "ll / ((1 - df / n)^2)",
+              "GIC" = "ll + log(log(n)) * log(p) * df")
+  if(method == "BIC" & g != 0) method <- "eBIC"
+  if(g < 0 | g > 1) stop("gamma parameter have to be set in (0,1)")
   
   if(trace) cat(paste0("\nOptimization through ", method, "\n\n"))
   fun <- function(lambda, X, y, alpha, family, intercept, weights, offset, unpenalized, control, k, n, p, trace){
@@ -503,7 +528,10 @@ aic.islasso <- function(object, method = c("aic", "bic"), interval, y, X, interc
         temp <- Inf #.Machine$double.xmax
     }
     else{
-      temp <- if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
+      # temp <- if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
+      ll <- deviance(obj)
+      df <- obj$rank
+      temp <- eval(parse(text = k))
         # temp <- if((n > p) & (family$family %in% c("gaussian", "binomial", "poisson", "Gamma")))
         #   if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
         # else

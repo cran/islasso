@@ -1,4 +1,4 @@
-subroutine islasso_glm(X, y, n, p, theta, se, cov, lambda, alpha, pi, estpi, &
+subroutine islasso_glm2(X, y, n, p, theta, se, cov, lambda, alpha, pi, estpi, &
 & h, itmax, tol, sigma2, trace, adaptive, offset, conv, stand, intercept, eta, &
 & mu, dev, weights, hi, edf, fam, link, grad2)
 
@@ -11,10 +11,11 @@ double precision :: pi(p), h, tol, sigma2, offset(n), eta(n), mu(n), dev
 double precision :: weights(n), hi(p), edf, grad2(p)
 
 ! internal variables
-integer :: i, j, itmax2, conv2, trace2 ! linkinv, mueta, variance, trace2, stand2,
-double precision :: xm(p), xse(p), theta0(p), varmu(n), ind3, dev0, pi2(p), ind4 !, eta2(n), mu2(n)
-double precision :: mu_eta_val(n), res(n), z(n), w(n), se0(p), cov0(p,p), s20
-double precision :: lambda2(p), s2, hh, offset2(n), ind, ind2, f0, grad0(p), edf0
+integer :: i, j, k, info ! linkinv, mueta, variance, trace2, stand2,
+double precision :: xm(p), xse(p), theta0(p), varmu(n) !, eta2(n), mu2(n)
+double precision :: mu_eta_val(n), res(n), z(n), w(n), se0(p), redf
+double precision :: lambda2(p), s2, ind, ind2, cov1(p,p)
+double precision :: xtw(p,n), xtx(p,p), xtwy(p), hess(p,p), grad(p), invH(p,p), tempMat(p,p)
 
 hi = 1.d0
 
@@ -26,72 +27,77 @@ hi = 1.d0
 
 xm = 0.d0
 xse = 1.d0
-dev0 = 1.d0
 
 eta = eta + offset
 call family(fam, link, 2, eta, n, mu)
-!    mu2 = mu
 call family(fam, link, 4, mu, n, varmu)
-!    eta2 = eta
 call family(fam, link, 3, eta, n, mu_eta_val)
 res = (y - mu) / mu_eta_val
-z = (eta - offset) + res
-w = weights * (mu_eta_val**2) / varmu
+!z = (eta - offset) + res
+!w = weights * (mu_eta_val**2) / varmu
 
-offset2 = 0.d0
 s2 = sigma2
-lambda2 = lambda
+lambda2 = lambda / hi
+
+theta0 = theta
+se0 = se
+
+h = 0.1d0
 
 if(stand.eq.1) then
     call standardize(X, xm, xse, n, p, intercept)
     lambda2 = lambda2 / xse
 end if
 
-trace2 = 0
-if((trace.eq.1).or.(trace.eq.3)) then
-    if(trace.eq.3) trace2 = 9
-    call islasso_trace2_5(tol, MAXVAL(lambda))
-end if
 do i = 1, itmax
     call rchkusr()
 
-    theta0 = theta
-    se0 = se
-    cov0 = cov
-    grad0 = grad2
-    edf0 = edf
-    s20 = s2
+    if(adaptive.eq.1) lambda2 = lambda / (hi + 0.0000d1)
 
     if((estpi.eq.1).and.(i.gt.1)) then
-        call logitlinkinv((theta / se)**2, p, pi)
+        call logitlinkinv(abs(theta / se), p, pi)
         pi = 2.d0 * pi - 1.d0
     end if
-    pi2 = pi
-    if(i.eq.1) pi2 = 1.d0
 
-    itmax2 = itmax
-    s2 = sigma2
-    hh = h
-    conv2 = conv
+    z = (eta - offset) + res
+    w = weights * (mu_eta_val**2) / varmu
 
-    call islasso2(X, z, n, p, theta, se, cov, lambda2, alpha, pi2, 0, hh, &
-        & itmax2, tol, s2, trace2, adaptive, offset2, conv2, 0, intercept, &
-        & eta, mu, res, dev, w, hi, edf, grad2)
+    ! cmputing starting values
+    do k = 1, p
+        xtw(k,:) = X(:,k) * w
+    end do
+    call DGEMM('N', 'N', p, p, n, 1.d0, xtw, p, X, n, 0.d0, xtx, p)
+    call DGEMV('N', p, n, 1.d0, xtw, p, z, 1, 0.d0, xtwy, 1)
 
-    if((hh.lt.0.000001d0).or.((conv2).eq.2)) then
-        theta = theta0
-        se = se0
-        cov = cov0
-        grad2 = grad0
-        edf = edf0
-        s2 = s20
-        conv = 3
-        if(trace.eq.2) call islasso_trace2_2(tol, i, itmax2, MAXVAL(lambda), f0, dev, n - edf, s2, ind, ind2, ind3, ind4)
-        if((trace.eq.1).or.(trace.eq.3)) call islasso_trace2_7(i, itmax2, dev, n - edf, s2, ind3, ind4)
-        exit
-    end if
+    do j = 1, itmax
+        ! computing IWLS
+        call fn1(theta, se, lambda2, xtx, pi, p, hess, alpha)
+        grad = xtwy
+        call solve(hess, grad, p, info)
+        if(info.ne.0) then
+            conv = 2
+            exit
+        end if
+        theta = grad
+
+        ind2 = MAXVAL(abs(theta - theta0))
+        if(ind2.le.tol) then
+            exit
+        end if
+
+        ! conv = 1 if j >= itmax
+        if(j.ge.itmax) then
+            conv = 1
+            exit
+        end if
+
+        theta0 = theta
+    end do
+    if(conv.eq.2) exit
     
-!    eta = eta + offset
+    call DGEMV('N', n, p, 1.d0, X, n, theta, 1, 0.d0, eta, 1)
+    eta = eta + offset
+
 !    eta2 = eta
     call family(fam, link, 2, eta, n, mu)
 !    mu2 = mu
@@ -99,42 +105,62 @@ do i = 1, itmax
 !    eta2 = eta
     call family(fam, link, 3, eta, n, mu_eta_val)
     res = (y - mu) / mu_eta_val
-    z = (eta - offset) + res
-    w = weights * (mu_eta_val**2) / varmu
+    dev = sum(weights * (res**2))
 
-    f0 = sum(grad2**2)
-
-    !ind = MAXVAL(abs(se - se0))
-    !ind2 = MAXVAL(abs(theta - theta0))
-    ind = sqrt(sum((se - se0)**2)) / p
-    ind2 = sqrt(sum((theta - theta0)**2)) / p
-    ind4 = 0.5d0 * (ind + ind2)
-    ind3 = abs(ind4 - dev0) / (0.1d0 + abs(ind4)) !0.5d0 * (ind + ind2)
-    if(trace.eq.2) call islasso_trace2_2(tol, i, itmax2, MAXVAL(lambda), f0, dev, n - edf, s2, ind, ind2, ind3, ind4)
-    if((trace.eq.1).or.(trace.eq.3)) call islasso_trace2_7(i, itmax2, dev, n - edf, s2, ind3, ind4)
-    
-    ! conv = 0 if abs(se - se0) < tol
-    if(ind3.lt.tol) then
-        if(trace.ge.1) call islasso_trace1_8()
+    ! updating components for variance covariance matrix
+    call fn2(theta, se, lambda2, xtx, pi, p, hess, alpha)
+    call inv(p, hess, invH, info)
+    if(info.ne.0) then
+        conv = 2
         exit
     end if
-    dev0 = ind4
+    call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, tempMat, p)
+    do k = 1, p
+        hi(k) = tempMat(k,k)
+    end do
+    call DGEMM('N', 'N', p, p, p, 1.d0, tempMat, p, invH, p, 0.d0, cov1, p)
+    edf = sum(hi)
+    redf = n - edf
+    if(sigma2.lt.0) s2 = dev / redf
+    cov = cov + h * (cov1 - cov)
+    do k = 1, p
+        se(k) = sqrt(s2 * cov(k,k))
+    end do
+
+    ! checking possible convergence criterion
+    ind = MAXVAL(abs(se - se0))
+    if(trace.eq.2) call islasso_trace2_2_2(tol, i, MAXVAL(lambda), dev, redf, s2, &
+        & ind, ind2)
+    if(trace.eq.1) call islasso_trace2_7_2(tol, i, MAXVAL(lambda), dev, redf, s2, &
+        & ind, ind2)
+
+    if(ind.le.(tol*10)) then
+        if(trace.eq.9) call islasso_trace2_6(i)
+        if((trace.eq.1).or.(trace.eq.2)) call islasso_trace1_8()
+        exit
+    end if
+
     ! conv = 1 if i >= itmax
     if(i.ge.itmax) then
         conv = 1
         exit
     end if
+
+    se0 = se
 end do
 
+! updating output components
 itmax = i
-!lambda = lambda2
-sigma2 = s2
-pi = pi2
+if(sigma2.lt.0) sigma2 = s2
+lambda = lambda2
+call gradient(theta, se, lambda, xtw, res, pi, n, p, grad2, alpha)
 
+! if standardized beta and se, then return to the original scale
 if(stand.eq.1) then
     call check_out(theta, cov, xm, xse, p, intercept)
     do j = 1, p
         se(j) = sqrt(sigma2 * cov(j,j))
     end do
+    lambda = lambda * xse
 end if
-end subroutine islasso_glm
+end subroutine islasso_glm2

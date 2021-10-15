@@ -26,7 +26,13 @@ General linear hypotheses for linear combinantions of the regression coefficient
 \details{
 For the islasso regression model with coefficients \eqn{\beta}{beta}, the null hypothesis is \deqn{H_0:A\beta=b}{H_0: A \beta=b} where A and b are known matrix and vector. A can be a vector and b can be a scalar
 }
+\author{
+Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
+}
 
+\seealso{
+\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
+}
 \examples{
 \dontrun{
 set.seed(1)
@@ -43,7 +49,7 @@ eta <- drop(X \%*\% coef)
 mu <- eta
 y <- mu + rnorm(n, 0, sigma)
 
-o <- islasso(y~-1+X, family=gaussian)
+o <- islasso(y ~ . - 1, data = data.frame(y = y, X))
 A <- rbind(rep(c(1,0), c(10, p-10)),
            rep(c(0,1), c(10, p-10)))
 anova(o, A)

@@ -27,9 +27,9 @@ static const R_FortranMethodDef FortEntries[] = {
     {"gamma_variance", (DL_FUNC) &F77_SUB(gamma_variance), 3},
     {"family", (DL_FUNC) &F77_SUB(family), 6},
     {"gradient", (DL_FUNC) &F77_SUB(gradient), 10},
-    {"hessian", (DL_FUNC) &F77_SUB(hessian), 9},
-    {"islasso2", (DL_FUNC) &F77_SUB(islasso2), 29},
-    {"islasso_glm", (DL_FUNC) &F77_SUB(islasso_glm), 30},
+    {"hessian", (DL_FUNC) &F77_SUB(hessian), 8},
+    {"islasso3", (DL_FUNC) &F77_SUB(islasso3), 29},
+    {"islasso_glm2", (DL_FUNC) &F77_SUB(islasso_glm2), 30},
     {"standardize", (DL_FUNC) &F77_SUB(standardize), 6},
     {"check_out", (DL_FUNC) &F77_SUB(check_out), 6},
     {"crossp", (DL_FUNC) &F77_SUB(crossp), 4},
@@ -38,8 +38,6 @@ static const R_FortranMethodDef FortEntries[] = {
     {"prod2", (DL_FUNC) &F77_SUB(prod2), 6},
     {"linear_predictor", (DL_FUNC) &F77_SUB(linear_predictor), 6},
     {"setdiff", (DL_FUNC) &F77_SUB(setdiff), 3},
-    {"armijo", (DL_FUNC) &F77_SUB(armijo), 16},
-    {"armijo2", (DL_FUNC) &F77_SUB(armijo2), 14},
     {NULL, NULL, 0}
 };
 

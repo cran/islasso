@@ -8,15 +8,17 @@ Optimization for the selection of the tuning parameter
 This function performs a minimization of the AIC/BIC criterion for selecting the tuning parameter in \dQuote{\code{islasso}}.
 }
 \usage{
-aic.islasso(object, method = c("aic", "bic"), interval, y, X, 
+aic.islasso(object, method = c("AIC", "BIC", "AICc", "GCV", "GIC"), 
+  interval, g = 0, y, X, 
   intercept = FALSE, family = gaussian(), alpha = 1, offset, 
   weights, unpenalized, control = is.control(), trace = TRUE)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
 \item{object}{a fitted model object of class "islasso".}
-\item{method}{the criterion to optimize, AIC or BIC.}
+\item{method}{the criterion to optimize, AIC, BIC, AICc, GCV, GIC.}
 \item{interval}{the  lower and upper limits of \eqn{\lambda}{\lambda} wherein the AIC/BIC criterion should be optimized. Can be missing, if \code{object} has been obtained via cross-validation (and therefore includes the range of lambdas)  }
+\item{g}{a value belonging to the interval [0, 1]. Classical BIC is returned by letting g = 0 (default value), whereas extended BIC corresponds to the case g = 0.5.}
 \item{y}{if \code{object} is missing, the response vector of length n.}
 \item{X}{if \code{object} is missing, the design matrix of dimension n * p.}
 \item{intercept}{if \code{object} is missing, if TRUE the intercept is added to the model matrix.}
@@ -31,17 +33,14 @@ aic.islasso(object, method = c("aic", "bic"), interval, y, X,
 \item{trace}{Should the iterative procedure be printed? TRUE is the default value.}
 }
 \details{
-Minimization of the Akaike Information Criterion (AIC) or Bayesian Information Criterion (BIC) is sometimes employed to select the tuning parameter as an alternative to the cross validation. The model degrees of freedom (not necessarly integers as in the plain lasso) used in AIC/BIC are computed as trace of the hat matrix at convergence. 
+Minimization of the Akaike Information Criterion (AIC), or Bayesian Information Criterion (BIC) or several other criteria are sometimes employed to select the tuning parameter as an alternative to the cross validation. The model degrees of freedom (not necessarly integers as in the plain lasso) used in all methods are computed as trace of the hat matrix at convergence. 
 }
 \value{
 the optimal lambda value is returned
 }
 
 \author{
-Gianluca Sottile
-
 Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
-
 }
 
 \seealso{
@@ -62,14 +61,17 @@ X <- matrix(rnorm(n*p), n, p)
 mu <- drop(X\%*\%coef)
 y <- mu + rnorm(n, 0, sigma)
 
-o <- islasso(y ~ X)
+o <- islasso(y ~ ., data = data.frame(y = y, X))
 
 \dontrun{
 #use the evaluation interval of the fit
-lambda_aic <- aic.islasso(o, method="aic") 
+lambda_aic <- aic.islasso(o, method = "AIC") 
 
 #overwrites the evaluation interval for lambda
-lambda_bic <- aic.islasso(o, interval=c(.1, 30), method="bic") 
+lambda_bic <- aic.islasso(o, interval = c(.1, 30), method = "BIC") 
+
+#overwrites the evaluation interval for lambda using eBIC criterion
+lambda_ebic <- aic.islasso(o, interval = c(.1, 30), method = "BIC", g = .5) 
 }
 }
 \keyword{models}

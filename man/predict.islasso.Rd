@@ -3,7 +3,7 @@
 \title{Prediction method for islasso fitted objects}
 \usage{
 \method{predict}{islasso}(object, newdata, type = c("link", "response",
-  "coefficients", "class"), se.fit = FALSE, ci = NULL, level = .95, ...)
+  "coefficients", "class"), se.fit = FALSE, level = .95, ...)
 }
 \arguments{
 \item{object}{a fitted object of class "islasso".}
@@ -15,8 +15,6 @@ Thus for a default binomial model the default predictions are of log-odds (proba
 
 \item{se.fit}{logical switch indicating if confidence intervals are required.}
 
-\item{ci}{optionally, a two columns matrix of estimated confidence intervals for the estimated coefficients.}
-
 \item{level}{the confidence level required.}
 
 \item{...}{further arguments passed to or from other methods.}
@@ -26,6 +24,13 @@ An object depending on the type argument
 }
 \description{
 Prediction method for islasso fitted objects
+}
+\author{
+Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
+}
+
+\seealso{
+\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
 }
 \examples{
 \dontrun{
@@ -42,7 +47,7 @@ Prediction method for islasso fitted objects
  mu <- drop(X\%*\%coef)
  y <- mu + rnorm(n, 0,sigma)
  lambda <- 2
- o <- islasso(y~X, family=gaussian, lambda=lambda)
- predict(o)
+ o <- islasso(y ~ ., data = data.frame(y = y, X), lambda = lambda)
+ predict(o, type = "response")
 }
 }

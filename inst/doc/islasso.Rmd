@@ -53,14 +53,22 @@ Let $\mathbf{y} = \mathbf{X}\beta + \mathbf{\epsilon}$ be the linear model of in
 $$\frac{1}{2}||\mathbf{y}-\mathbf{X}\mathbf{\beta}||_2^2+\lambda||\mathbf{\beta}||_1$$
 
 # The R functions
-The main function of the package is _islasso()_ where the user supplies the model formula as in the usual _lm_ or _glm_ functions, i.e.
+The main function of the package are _islasso()_ where the user supplies the model formula as in the usual _lm_ or _glm_ functions, i.e.
 
 ```{r, dont-eval, eval=FALSE}
 islasso(formula, family = gaussian, lambda, alpha = 1, data, weights, subset,
         offset, unpenalized, contrasts = NULL, control = is.control())
 ```
 
-_family_ accepts specification of family and link function as in Table 1, _lambda_ is the tuning parameter and _unpenalized_ allows to indicate covariates with unpenalized coefficients.
+and _islasso.path_ used to fit the regularization path via the induced smoothed lasso framework, i.e.
+
+```{r, dont-eval-1, eval=FALSE}
+islasso.path(formula, family = gaussian, lambda = NULL, nlambda = 100, 
+             lambda.min.ratio = ifelse(nobs < nvars, 1E-3, 1E-05), alpha = 1, 
+             data, weights, subset, offset, unpenalized, contrasts = NULL, control = is.control())
+```
+
+_family_ accepts specification of family and link function as in Table 1, _lambda_ is the tuning parameter, _alpha_ is elastic-net mixing parameter, _nlambda_ is the number of lambda values, _lambda.min.ratio_ is the smallest value for lambda (as a fraction of lambda.max), and _unpenalized_ allows to indicate covariates with unpenalized coefficients.
 
 __Table 1. Families and link functions allowed in islasso__
 
@@ -71,25 +79,32 @@ __Table 1. Families and link functions allowed in islasso__
 | poisson | log |
 | gamma | identity, log, inverse |
 
-The fitter function is \verb|is.lasso.fit()| which reads as
+The fitter functions are \verb|islasso.fit()| and \verb|islasso.path.fit()| which reads as
 
 ```{r, dont-eval1, eval=FALSE}
-islasso.fit(X, y, family = gaussian, lambda, alpha = 1, intercept = FALSE, 
-    weights = NULL, offset = NULL, unpenalized = NULL, control = is.control()) 
+islasso.fit(X, y, family = gaussian(), lambda, alpha = 1, intercept = FALSE, 
+            weights = NULL, offset = NULL, unpenalized = NULL, control = is.control()) 
 ```
 
-which actually implements the estimating algorithm as described in the paper. The _lambda_ argument in _islasso.fit_ and _islasso_ specifies the positive tuning parameter in the penalized objective. Any non-negative value can be provided, but if missing, it is computed via $K$-fold cross validation by the function _cv.glmnet()_ from package __glmnet__. The number of folds being used can be specified via the argument _nfolds_ of the auxiliary function _is.control()_.
+and
+
+```{r, dont-eval1-1, eval=FALSE}
+islasso.path.fit(X, y, family = gaussian(), lambda, nlambda, lambda.min.ratio, 
+                 alpha = 1, intercept = FALSE, weights = NULL, offset = NULL, 
+                 unpenalized = NULL, control = is.control()) 
+```
+
+whose actually implements the estimating algorithm as described in the paper. The _lambda_ argument in _islasso.fit_ and _islasso_ specifies the positive tuning parameter in the penalized objective. Any non-negative value can be provided, but if missing, it is computed via $K$-fold cross validation by the function _cv.glmnet()_ from package __glmnet__. The number of folds being used can be specified via the argument _nfolds_ of the auxiliary function _is.control()_. The _lambda_ argument in _islasso.path.fit_ and _islasso.path_ specifies the sequence of positive tuning parameters, user supplied or automatically computed based on _nlambda_ and _lambda.min.ratio_.
 
 # A worked example: the Diabetes data set
 We use the well-known __diabetes__ dataset available in the __lars__ package. The data refer to $n = 442$ patients enrolled to investigate a measure of disease progression one year after the baseline. There are ten covariates, (age, sex, bmi (body mass index), map (average blood pressure) and several blood serum measurements (tc, ldl, hdl, tch, ltg, glu). The matrix _x2_ in the dataframe also includes second-order terms, namely first-order interactions between covariates, and quadratic terms for the continuous variables. 
 
-To select the important terms in the regression equation we apply the lasso 
+To select the important terms in the regression equation we could simply apply the lasso using the R package __glmnet__
 
 ```{r}
-library(lars)
-library(glmnet)
+library(islasso)
 
-data("diabetes", package = "lars")
+data("diabetes", package = "islasso")
 
 a1 <- with(diabetes, cv.glmnet(x2, y))
 n <- nrow(diabetes)
@@ -113,44 +128,86 @@ tail(b[b != 0])
 
 A reasonable question is if all the "selected" coefficients are significant in the model. Unfortunately lasso regression does not return standard errors due to nonsmoothness of objective, and some alternative approaches have been proposed., including the  (Lockhart et al., 2013). Among the (few) strategies, including the 'covariance test', the 'post-selection inference' and the '(modified) residual bootstrap', here we illustrate the R package __islasso__ implementing the recent `quasi' lasso approach based on the induced smoothing idea (Brown and Wang, 2005) as discussed in Cilluffo et al. (2019) 
 
-While the optimal lambda could be selected (without supplying any value to _lambda_), we use optimal value minimizing the AIC 
+While the optimal lambda could be selected (without supplying any value to _lambda_), we use optimal value minimizing a specific criterion chosen between AIC, BIC, AICc, BIC, GCV or GIC. From version 1.4.0 of the R package __islasso__ optimal strategy is to built the regularization path
 
 ```{r}
-library(islasso)
-out <- islasso(y ~ x2, data = diabetes, lambda = a1$lambda.min * n)
+out <- islasso.path(y ~ x2, data = diabetes, nlambda = 30L)
+out
 ```
 
-The __summary__ method quickly returns the main output of the fitted model, including point estimates, standard errors and $p$-values. Visualizing estimates for all covariates could be somewhat inconvenient, especially when the number of covariates is large, thus we decide to print estimates only if the pvalue is less than a threshold value. We use _0.50_
+and then to choose the best tuning parameter through the one of the criteria listed above using the function _GoF.islasso.path_, e.g.,
 
 ```{r}
-summary(out, pval = 0.10)
+lmb.best <- GoF.islasso.path(out)
+lmb.best$lambda.min
+```
+
+Using also the regularization path is very usefull to have more insights about coefficients, standard errors and gradient profile
+
+```{r}
+par(mfrow = c(1, 3))
+plot(out, yvar = "coefficients")
+plot(out, yvar = "se")
+plot(out, yvar = "gradient")
+```
+
+Once selected the best lambda value minimizing for example the BIC criterion, the last step of the strategy consists on fitting a new islasso model.
+
+```{r}
+lambda.bic <- lmb.best$lambda.min["BIC"]
+out2 <- islasso(y ~ x2, data = diabetes, lambda = lambda.bic)
+out2
+```
+
+The __summary__ method quickly returns the main output of the fitted model, including point estimates, standard errors and $p$-values. Visualizing estimates for all covariates could be somewhat inconvenient, especially when the number of covariates is large, thus we decide to print estimates only if the pvalue is less than a threshold value. We use _0.10_
+
+```{r}
+summary(out2, pval = 0.10)
 ```
 
 In addition to the usual information printed by the summary method, the output also includes the column _Df_ representing the degrees of freedom of each coefficient. Their sum is used to quantify the model complexity 
 
 ```{r}
-sum(out$internal$hi)
+sum(out2$internal$hi)
 ```
 
-and the corresponding residual degrees of freedom (`r out$internal$n-out$rank`) as reported above. The Wald test (column _z value_) and $p$-values can be used to assess important or significant covariates. Results suggest that the value of the minimum lambda choosn by the cross validation procedure of glmnet was too high, hence as an alternative, it is also possible to select the tuning parameter $\lambda$ by means the Bayesian or Akaike Information Criterion. The function _aic.islasso_, requires an islasso fit object and specification of the criterion to be used (AIC/BIC). Hence
+and the corresponding residual degrees of freedom (`r out$internal$n - out$rank`) as reported above. The Wald test (column _z value_) and $p$-values can be used to assess important or significant covariates. Results suggest that variables bmi, map, hdl and ltg to predict the measure of diabetes progression, while sex and two interactions age:sex and bmi:map are borderline informative. Just to be clear, another way to obtain a similar result without computing the regularization path, is to use the function _aic.islasso_ which requires a preliminary islasso fit object and a specification of the criterion to be used. Hence
 
 ```{r}
-lmb.bic <- aic.islasso(out, method = "bic", interval = c(1, 100))
-out1 <- update(out, lambda = lmb.bic)
-summary(out1, pval = .05)
+lambda.bic2 <- aic.islasso(out2, method = "BIC", interval = c(1, 100))
+out3 <- update(out2, lambda = lambda.bic2)
+summary(out3, pval = .10)
 ```
 
-Comparisons between methods to select the tuning parameter and further discussions  We conclude this short note by emphasizing that __islasso__ also accepts the so-called elastic-net penalty, such that 
+Comparisons between methods to select the tuning parameter and further discussions are out of the scope of this short note. We conclude this note by emphasizing that __islasso__ also accepts the so-called elastic-net penalty, such that 
 $$
 \frac{1}{2}||\mathbf{y}- \mathbf{X\beta}||_2^{2}+\lambda \{ \alpha ||\mathbf{\beta} ||^{}_1 + \frac{1}{2}(1-\alpha) ||\mathbf{\beta} ||^{2}_2 \}
 $$ 
-where $0\le \alpha\le 1$ is the mixing parameter to be specified in _islasso()_ and _islasso.fit()_ via the argument _alpha_, e.g.
+where $0\le \alpha\le 1$ is the mixing parameter to be specified in _islasso()_ and _islasso.path()_ via the argument _alpha_, e.g.
 
 ```{r}
-out2 <- update(out, alpha = .5)
-lmb.bic <- aic.islasso(out2, method = "bic", interval = c(1, 100))
-out3 <- update(out, lambda = lmb.bic)
-summary(out3, pval = .05)
+# update the islasso path to fit an elastic-net model
+out4 <- update(out, alpha = .5)
+out4
+
+# some diagnostic plot
+par(mfrow = c(1, 2))
+plot(out4, yvar = "coefficients")
+plot(out4, yvar = "se")
+
+# select the best tuning parameter
+lmb.best2 <- GoF.islasso.path(out4)
+lmb.best2$lambda.min
+
+# fit a new islasso model with elastic-net penalty
+lambda.bic3 <- lmb.best2$lambda.min["BIC"]
+out5 <- update(out2, alpha = .5, lambda = lambda.bic3)
+summary(out5, pval = .10)
+
+# or select the best tuning parameter using BIC with an islasso object
+lambda.bic4 <- aic.islasso(out5, method = "BIC", interval = c(1, 100))
+out6 <- update(out5, lambda = lambda.bic4)
+summary(out6, pval = .10)
 ```
 
 # References
