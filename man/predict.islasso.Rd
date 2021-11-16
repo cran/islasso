@@ -33,7 +33,6 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 \code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
 }
 \examples{
-\dontrun{
  set.seed(1)
  n <- 100
  p <- 100
@@ -49,5 +48,8 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
  lambda <- 2
  o <- islasso(y ~ ., data = data.frame(y = y, X), lambda = lambda)
  predict(o, type = "response")
+ 
+ \dontrun{
+  predict(o, type = "response", se.fit = TRUE)
 }
 }

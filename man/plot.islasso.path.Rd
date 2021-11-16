@@ -1,6 +1,9 @@
 \name{plot.islasso.path}
 \alias{plot.islasso.path}
-\title{Produces a coefficient profile plot of the coefficient paths for a fitted "islasso.path" object.}
+\title{plot coefficient profile from a fitted "islasso.path" object.}
+\description{
+Produces a coefficient profile plot of the coefficient paths for a fitted "islasso.path" object.
+}
 \usage{
 \method{plot}{islasso.path}(x, 
   yvar = c("coefficients", "se", "gradient", "weight", 
@@ -14,22 +17,9 @@
 \item{cex.lab}{a numerical scalar giving the amount by which plotting labels should be scaled.}
 \item{...}{other graphical parameters for the plot}
 }
-\description{
-A coefficient profile plot is produced for Induced Smoothing Lasso Model path.
-}
-\details{
-The plot on the top left is a plot of the standard deviance residuals against the fitted values.
-The plot on the top right is a normal QQ plot of the standardized deviance residuals.
-The red line is the expected line if the standardized residuals are normally distributed, i.e. it is the line with intercept 0 and slope 1.
-The bottom two panels are plots of link and variance functions. On the left is squared standardized Pearson residuals against the fitted values.
-On the right working vector against the linear predictor.
-}
-\author{
-Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
-}
 
-\seealso{
-\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
+\details{
+A coefficient profile plot is produced for Induced Smoothing Lasso Model path.
 }
 \examples{
 \dontrun{

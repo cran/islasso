@@ -22,6 +22,7 @@ is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
 \item{seed}{optional, the seed to be used to split the dataframe and to perform cross validation. Useful to make reproducible the results. }
 
 \item{adaptive}{experimental, if TRUE the adaptive LASSO is implemented.}
+
 \item{g}{a value belonging to the interval [0, 1]. Classical BIC is returned by letting g = 0 (default value), whereas extended BIC corresponds to the case g = 0.5.}
 
 \item{b0}{optional, starting values for the regression coefficients. If NULL, the point estimates from \code{glmnet} are used.}
@@ -33,4 +34,7 @@ is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
 }
 \description{
 Auxiliary function for controlling the islasso model fitting.
+}
+\author{
+Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 }

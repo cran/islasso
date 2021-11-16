@@ -104,6 +104,7 @@ Sottile, G, Cilluffo, G, Muggeo, VMR (2019). \emph{The R package islasso: estima
 }
 \author{
 The main function of the same name was inspired by the R function previously implemented by Vito MR Muggeo.
+
 Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 }
 
@@ -142,6 +143,8 @@ AIC(o)
 logLik(o)
 
 \dontrun{
+confint(o, parm = 1:10)
+
 # for the interaction
 o <- islasso(y ~ X1 * X2, data = data.frame(y = y, X), 
              family = gaussian())

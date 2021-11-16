@@ -19,6 +19,9 @@ double precision :: xtw(p,n), xtx(p,p), xtwy(p), hess(p,p), grad(p), invH(p,p), 
 
 hi = 1.d0
 
+ind = 1.d0
+ind2 = 1.d0
+
 !variance = 4
 !mueta = 3
 !linkinv = 2
@@ -28,6 +31,7 @@ hi = 1.d0
 xm = 0.d0
 xse = 1.d0
 
+call DGEMV('N', n, p, 1.d0, X, n, theta, 1, 0.d0, eta, 1)
 eta = eta + offset
 call family(fam, link, 2, eta, n, mu)
 call family(fam, link, 4, mu, n, varmu)
@@ -54,7 +58,7 @@ do i = 1, itmax
 
     if(adaptive.eq.1) lambda2 = lambda / (hi + 0.0000d1)
 
-    if((estpi.eq.1).and.(i.gt.1)) then
+    if(estpi.eq.1) then
         call logitlinkinv(abs(theta / se), p, pi)
         pi = 2.d0 * pi - 1.d0
     end if
@@ -82,12 +86,6 @@ do i = 1, itmax
 
         ind2 = MAXVAL(abs(theta - theta0))
         if(ind2.le.tol) then
-            exit
-        end if
-
-        ! conv = 1 if j >= itmax
-        if(j.ge.itmax) then
-            conv = 1
             exit
         end if
 
@@ -153,6 +151,7 @@ end do
 itmax = i
 if(sigma2.lt.0) sigma2 = s2
 lambda = lambda2
+tol = ind
 call gradient(theta, se, lambda, xtw, res, pi, n, p, grad2, alpha)
 
 ! if standardized beta and se, then return to the original scale

@@ -27,14 +27,12 @@ General linear hypotheses for linear combinantions of the regression coefficient
 For the islasso regression model with coefficients \eqn{\beta}{beta}, the null hypothesis is \deqn{H_0:A\beta=b}{H_0: A \beta=b} where A and b are known matrix and vector. A can be a vector and b can be a scalar
 }
 \author{
+The main function of the same name was inspired by the R function previously implemented by Vito MR Muggeo.
+
 Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 }
 
-\seealso{
-\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
-}
 \examples{
-\dontrun{
 set.seed(1)
 n <- 100
 p <- 100
@@ -49,7 +47,8 @@ eta <- drop(X \%*\% coef)
 mu <- eta
 y <- mu + rnorm(n, 0, sigma)
 
-o <- islasso(y ~ . - 1, data = data.frame(y = y, X))
+o <- islasso(y ~ . - 1, data = data.frame(y = y, X), 
+             family = gaussian())
 A <- rbind(rep(c(1,0), c(10, p-10)),
            rep(c(0,1), c(10, p-10)))
 anova(o, A)
@@ -57,5 +56,9 @@ anova(o, A)
 A <- cbind(diag(10), matrix(0, 10, p-10))
 b <- coef.true
 anova(o, A, b)
+
+\dontrun{
+ci <- confint(o, type.ci = "score")
+anova(o, A, b, ci = ci)
 }
 }

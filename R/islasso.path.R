@@ -314,7 +314,7 @@ startpoint.islasso.path <- function(X, y, lambda, alpha, weights, offset, mustar
     if(intercept) x <- x[, -1]
     obj <- suppressWarnings(glmnet(x = x, y = y2, family = tempFamily, alpha = alpha, weights = weights2,
                                    standardize = TRUE, intercept = intercept, offset = offset))
-    est <- as.vector(coef(obj, s = min(lambda)))
+    est <- as.vector(coef(obj, s = min(lambda) / nobs))
     if(!intercept) est <- est[-1]
   }
   interval <- range(lambda)
@@ -341,16 +341,18 @@ startpoint.islasso.path <- function(X, y, lambda, alpha, weights, offset, mustar
 islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
   
   cov.unscaled <- start$covar
-  tmp2 <- se <- start$se
-  tmp <- b <- start$beta + .01
+  se <- start$se
+  b <- start$beta + .01
   
-  c <- prep$setting$c
-  fix.c <- prep$setting$fix.c
-  tol <- prep$setting$tol
-  maxIter <- prep$setting$itmax
-  trace <- prep$setting$trace
-  sigma2 <- prep$setting$sigma2
-  g <- prep$setting$g
+  setting <- prep$setting
+  c <- setting$c
+  fix.c <- setting$fix.c
+  est.c <- !fix.c
+  tol <- setting$tol
+  maxIter <- setting$itmax
+  trace <- setting$trace
+  sigma2 <- setting$sigma2
+  g <- setting$g
   nlambda <- length(lambda)
   alpha <- prep$alpha
   nvars <- prep$nvars
@@ -363,14 +365,45 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
   unpenalized <- prep$unpenalized
   family <- prep$family
   
-  outputInfo <- matrix(NA, ncol = 9, nrow = nlambda)
+  storage.mode(x) <- "double"
+  storage.mode(y) <- "double"
+  storage.mode(intercept) <- "integer"
+  storage.mode(nobs) <- "integer"
+  storage.mode(nvars) <- "integer"
+  storage.mode(b) <- "double"
+  storage.mode(se) <- "double"
+  storage.mode(cov.unscaled) <- "double"
+  storage.mode(lambda) <- "double"
+  storage.mode(alpha) <- "double"
+  storage.mode(offset) <- "double"
+  storage.mode(weights) <- "double"
+  eta <- start$eta
+  storage.mode(eta) <- "double"
+  mu <- start$mu
+  storage.mode(mu) <- "double"
+  res <- start$residuals
+  storage.mode(res) <- "double"
+  
+  storage.mode(c) <- "double"
+  storage.mode(est.c) <- "integer"
+  storage.mode(trace) <- "integer"
+  adaptive <- setting$adaptive
+  storage.mode(adaptive) <- "integer"
+  stand <- setting$stand
+  storage.mode(setting$stand) <- "integer"
+  h <- as.double(1)
+  storage.mode(maxIter) <- "integer"
+  storage.mode(tol) <- "double"
+  storage.mode(sigma2) <- "double"
+  
+  outputInfo <- matrix(NA, ncol = 7, nrow = nlambda)
   outputGoF <- matrix(NA, ncol = 6, nrow = nlambda)
   outputCoef <- matrix(NA, ncol = nvars, nrow = nlambda)
   outputSE <- matrix(NA, ncol = nvars, nrow = nlambda)
   outputWeight <- matrix(NA, ncol = nvars, nrow = nlambda)
   
-  if (trace == 2L) cat('\r\n\r\n    Ind|Max \t      lambda \t    df \t\t     phi \t Iter1 \t ErrorB \t Iter2 \t Error SE')
-  time0 <- Sys.time()
+  if (trace == 2L) cat('\r\n\r\n    Ind|Max \t      lambda \t    df \t\t     phi \t Iter \t Error')
+  if(trace > 0) time0 <- Sys.time()
   
   for (rep in seq_len(nlambda)) {
     l <- lambda[rep]
@@ -378,20 +411,35 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
     active <- as.vector(abs(b) > 1E-8)
     if(sum(active) == 0 | (intercept && all(which(active) == 1))) break
     
-    temp.fit <- islasso.path.fitter2(b[active], se[active], c[active], fix.c, l, alpha, x[, active, drop = FALSE], y, weights, sigma2,
-                                    cov.unscaled[active, active], nobs, intercept, tol, unpenalized[active], offset, family, maxIter)
-    b[active] <- temp.fit$b
+    #temp.fit <- islasso.path.fitter2(b[active], se[active], c[active], fix.c, l, alpha, x[, active, drop = FALSE], y, weights, sigma2,
+    #                                cov.unscaled[active, active], nobs, intercept, tol, unpenalized[active], offset, family, maxIter)
+    
+    temp.fit <- if(prep$tempFamily == "gaussian"){
+      .Fortran(C_islasso3, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
+               cov = cov.unscaled[active, active], lambda = l * (!unpenalized[active]), alpha = alpha, pi = c[active], estpi = est.c,
+               h = h, itmax = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
+               stand = stand, intercept = intercept, eta = eta, mu = mu, res = res, dev = double(1), weights = weights,
+               hi = double(sum(active)), edf = double(1), grad = double(sum(active)))
+    }else{
+      .Fortran(C_islasso_glm2, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
+               cov = cov.unscaled[active, active], lambda = l * (!unpenalized[active]), alpha = alpha, pi = c[active], estpi = est.c,
+               h = h, itmax = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
+               stand = stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights,
+               hi = double(sum(active)), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(sum(active)))
+    }
+                                    
+    b[active] <- temp.fit$ntheta
     se[active] <- temp.fit$se
-    c[active] <- temp.fit$c
-    cov.unscaled[active, active] <- temp.fit$cov.unscaled
-    iter <- temp.fit$iter
-    iter2 <- temp.fit$iter2
-    err <- temp.fit$err
-    err2 <- temp.fit$err2
-    e <- temp.fit$e
-    s2 <- temp.fit$s2
+    c[active] <- temp.fit$pi
+    cov.unscaled[active, active] <- temp.fit$cov
+    iter <- temp.fit$itmax
+    #iter2 <- temp.fit$iter2
+    err <- temp.fit$tol
+    #err2 <- temp.fit$err2
+    #e <- temp.fit$dev
+    s2 <- temp.fit$phi
     hi <- temp.fit$hi
-    df <- temp.fit$df
+    df <- temp.fit$edf
     conv <- temp.fit$conv
     
     # tau <- 1
@@ -416,16 +464,16 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
         formatC(df, format = "f", width = 10, digits = 4), '\t',
         formatC(s2, format = "f", width = 10, digits = 4), '\t',
         formatC(iter, format = "d", width = 4, digits = 0), '\t',
-        formatC(err, format = "f", width = 5 + 3, digits = 5 + 1), '\t',
-        formatC(iter2, format = "d", width = 4, digits = 0), '\t',
-        formatC(err2, format = "f", width = 5 + 3, digits = 5 + 1)
+        formatC(err, format = "f", width = 5 + 3, digits = 7 + 1)
+        #formatC(iter2, format = "d", width = 4, digits = 0), '\t',
+        #formatC(err2, format = "f", width = 5 + 3, digits = 7 + 1)
       )
     } 
     else{
       if(trace == 1L) cat('\r ', rep, '|', nlambda, rep(' ', 20))
     }
     
-    outputInfo[rep, ] <- c(l, df, s2, e, ll, iter, iter2, err, err2)
+    outputInfo[rep, ] <- c(l, df, s2, dev, -ll/2, iter, err)
     outputGoF[rep, ] <- c(aic, bic, aicc, ebic, gcv, gic)
     outputCoef[rep, ] <- c(b)
     outputSE[rep, ] <- c(se)
@@ -433,7 +481,7 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
   }
   
   colnames(outputInfo) <- c('lambda', "df", "phi", "deviance", "logLik", 
-                            "iterB", "iterSE", "errB", "errSE") 
+                            "iter", "err")
   colnames(outputGoF) <- c('AIC', 'BIC', 'AICc', "eBIC", 'GCV', "GIC")
   colnames(outputCoef) <- prep$nms
   colnames(outputSE) <- prep$nms
@@ -443,7 +491,7 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
   outputFitted <- family$linkinv(outputLinPred)
   outputResid <- (rep(y, each = nrow(outputFitted)) - outputFitted) / family$mu.eta(outputFitted)
   
-  cat('\n\n Executed in ', Sys.time() - time0, '(s) \n')
+  if(trace > 0) cat('\n\n Executed in ', Sys.time() - time0, '(s) \n')
   output <- list(call = match.call(), Info = na.omit(outputInfo), GoF = na.omit(outputGoF), Coef = na.omit(outputCoef), 
                  SE = na.omit(outputSE), Weight = na.omit(outputWeight), Linear.predictors = outputLinPred,
                  Fitted.values = outputFitted, Residuals = outputResid,
@@ -460,7 +508,7 @@ islasso.path.fitter2 <- function(b, se, c, fix.c, l, alpha, x, y, weights, sigma
   fn1 <- function(b, s = 1, c = .5, alpha, unpenalized) {
     lb <- length(b)
     bsc <- (b / s)
-    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) / b + (1 - alpha)
+    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, .00001) - 1)) / b + (1 - alpha)
     if(any(unpenalized)) r[unpenalized] <- 0
     if (length(r) > 1) {
       r <- diag(as.vector(r), nrow = lb, ncol = lb)
@@ -470,7 +518,7 @@ islasso.path.fitter2 <- function(b, se, c, fix.c, l, alpha, x, y, weights, sigma
   fn2 <- function (b, s = 1, c = .5, alpha, unpenalized) {
     lb <- length(b)
     bsc <- (b / s)
-    r <- alpha *(c*(2 * dnorm(bsc, 0, 1) / s) + (1 - c)*(2 * dnorm(bsc, 0, 1E-5) / s)) + (1 - alpha)
+    r <- 2 * alpha *(c * dnorm(bsc, 0, 1) + (1 - c) * dnorm(bsc, 0, .00001)) / s + (1 - alpha)
     r[is.nan(r)] <- 0
     if(any(unpenalized)) r[unpenalized] <- 0
     if (length(r) > 1) {
@@ -523,7 +571,7 @@ islasso.path.fitter2 <- function(b, se, c, fix.c, l, alpha, x, y, weights, sigma
   while(err2 > (tol*10)) {
     err <- 1
 
-    if(!fix.c) c <- 2*binomial()$linkinv(abs(b / se)) - 1
+    if(!fix.c) c <- 2 * binomial()$linkinv(abs(b / se)) - 1
     z <- (eta - offset) + res
     w <- weights * (mueta^2) / varmu
     Xw <- x * w
@@ -532,14 +580,16 @@ islasso.path.fitter2 <- function(b, se, c, fix.c, l, alpha, x, y, weights, sigma
     
     while (err > tol) {
       inV <- XtX + l * fn1(b = b, s = se, c = c, alpha = alpha, unpenalized = unpenalized)
-      b <- temp.check <- try(solve(inV, XtY), silent = TRUE)
-      if(inherits(temp.check, "try-error")) {
-        b <- tmp 
+      #inV <- try(chol2inv(chol(inV)), silent = TRUE)
+      b <- qr.solve(inV, XtY)
+      if(inherits(inV, "try-error")) {
+        # b <- tmp 
         err <- err.old
         conv <- 1L
         warning(paste0("XtX + l*P' not invertible at lambda ", l, ". Safe exit!"))
         break()
       }
+      #b <- inV %*% XtY
       
       err.old <- err <- max(abs(tmp - b))
       # if(err <= 10 ^ -(digit + 0)) print(data.frame(it = iter, err = err, t(b[1:10])))
@@ -612,7 +662,6 @@ GoF.islasso.path <- function(object, plot = TRUE, ...){
   
   return(list(gof = gof, minimum = id.min, lambda.min = lambda.min))
 }
-
 
 
 # islasso.path.fit.lm <- function(prep, start, lambda, fam, link){

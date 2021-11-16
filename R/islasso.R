@@ -292,8 +292,8 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   }
   interval <- if(exists("obj")) range(rev(obj$lambda))*nobs else NULL
   
-  covar <- if(is.null(setting$V0)) diag(.1, nvars) else setting$V0
-  se <- if(is.null(setting$V0)) rep(sqrt(.1), nvars) else sqrt(diag(covar))
+  covar <- if(is.null(setting$V0)) diag(.01, nvars) else setting$V0
+  se <- sqrt(diag(covar))
   eta <- family$linkfun(mustart) + offset
   mu <- family$linkinv(eta)
   residuals <- (y - mu) / family$mu.eta(eta)
@@ -413,7 +413,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   fn0 <- function(grad, b, s, c, lambda, alpha, unpenalized) {
     bsc <- (b / s)
     # grad <- crossprod(x, y - drop(x %*% b))
-    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) + (1 - alpha) * b
+    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, .00001) - 1)) + (1 - alpha) * b
     if(any(unpenalized)) r[unpenalized] <- 0
     return(drop(- grad + lambda * r))
   }
@@ -529,7 +529,7 @@ aic.islasso <- function(object, method = c("AIC", "BIC", "AICc", "GCV", "GIC"), 
     }
     else{
       # temp <- if(k == 2){ obj$aic }else{ obj$aic - 2 * obj$rank + k * obj$rank }
-      ll <- deviance(obj)
+      ll <- obj$aic - 2 * obj$rank
       df <- obj$rank
       temp <- eval(parse(text = k))
         # temp <- if((n > p) & (family$family %in% c("gaussian", "binomial", "poisson", "Gamma")))

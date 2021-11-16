@@ -9,7 +9,7 @@ print.islasso.path <-  function(x, digits = max(3L, getOption("digits") - 3L), .
   cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"), "\n\n", sep = "")
   if(length(x$Coef)){
     cat("Coefficients:\n")
-    Info <- data.frame(x$Info[, 1:5])
+    Info <- data.frame(x$Info[, 1:5, drop = FALSE])
     Info$lambda <- formatC(Info$lambda, format = "f", digits = 4, width = 4 + nchar(round(max(Info$lambda))))
     Info$df <- formatC(Info$df, format = "f", digits = 4, width = 4 + nchar(round(max(Info$df))))
     Info$phi <- formatC(Info$phi, format = "f", digits = 4, width = 4 + nchar(round(max(Info$phi))))
@@ -31,16 +31,30 @@ summary.islasso.path <- function(object, pval = 1, use.t = FALSE, lambda, ...){
   
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(print(object))
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-  se <- interpolate(object$SE[id1,], object$SE[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-  aic <- interpolate(object$GoF[id1, "AIC"], object$GoF[id2, "AIC"], lambda.seq[id1], lambda.seq[id2], lambda)
-  dispersion <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
-  df0 <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
-  logLik <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
+  if(nlambda == 1){
+    lambda <- lambda.seq
+    coef <- object$Coef[1,]
+    se <- object$SE[1,]
+    aic <- object$GoF[1, "AIC"]
+    dispersion <- object$Info[1, "phi"]
+    df0 <- object$Info[1, "df"]
+    logLik <- object$Info[1, "logLik"]
+    iter <- object$Info[1, "iter"]
+  }
+  else{
+    if(missing(lambda)) return(print(object))
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+    se <- interpolate(object$SE[id1,], object$SE[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+    aic <- interpolate(object$GoF[id1, "AIC"], object$GoF[id2, "AIC"], lambda.seq[id1], lambda.seq[id2], lambda)
+    dispersion <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
+    df0 <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
+    logLik <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
+    iter <- object$Info[id1, "iter"]
+  }
+  
   
   # coef <- object$Coef[lambda,]
   # se <- object$SE[lambda,]
@@ -79,8 +93,7 @@ summary.islasso.path <- function(object, pval = 1, use.t = FALSE, lambda, ...){
   
   out <- list(coefficients = coefficients, dispersion = dispersion, df = df, res = res, aic = aic, lambda = lambda, 
               nulldev = nulldev, dev = logLik, df.null = nulldf, df.res = nulldf - (df0 - 1*object$Input$intercept),
-              family = object$Input$family$family, iter = object$Info[id1, "iterB"], 
-              pval = pval, temp = temp, call = object$call)
+              family = object$Input$family$family, iter = iter, pval = pval, temp = temp, call = object$call)
   
   class(out) <- "summary.islasso.path"
   return(out)
@@ -131,6 +144,8 @@ plot.islasso.path <- function (x, yvar = c("coefficients", "se", "gradient", "we
   yvar <- match.arg(yvar)
   id.best <- apply(object$GoF, 2, which.min)
   lambda <- object$Info[, "lambda"]
+  nlambda <- length(lambda)
+  if(nlambda == 1) stop("no path in islasso.path fit!")
   if (yvar == "AIC") {
     # AIC
     plot(log(lambda), object$GoF[, "AIC", drop = FALSE], type = 'l', ylab = 'AIC', xlab = 'log Lambda', col = 'gray', ...)
@@ -265,7 +280,7 @@ predict.islasso.path <- function(object, newdata, type = c("link", "response", "
   }
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)){
+  if(missing(lambda) | nlambda == 1){
     beta <- object$Coef
     predictor <- tcrossprod(X, beta)
     lambda <- lambda.seq
@@ -303,11 +318,16 @@ model.matrix.islasso.path <- function (object, ...) {
 coef.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(object$Coef)
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+  if(nlambda == 1){
+    coef <- object$Coef[1,]
+  }else{
+    if(missing(lambda)) return(object$Coef)
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)  
+  }
+  
   return(coef)
   
 }
@@ -315,24 +335,32 @@ coef.islasso.path <- function(object, lambda, ...){
 fitted.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(object$Fitted.values)
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  fit <- interpolate(object$Fitted.values[id1,], object$Fitted.values[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+  if(nlambda == 1){
+    fit <- object$Fitted.values[1,]
+  }else{
+    if(missing(lambda)) return(object$Fitted.values)
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    fit <- interpolate(object$Fitted.values[id1,], object$Fitted.values[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+  }
   return(fit)
 }
 
 residuals.islasso.path <- function(object, type=c("working", "response", "deviance", "pearson"), lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(object$Residuals)
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  res <- interpolate(object$Residuals[id1,], object$Residuals[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-  mu <- interpolate(object$Fitted.values[id1,], object$Fitted.values[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-  
+  if(nlambda == 1){
+    res <- object$Residuals[1,]
+    mu <- object$Fitted.values[1,]
+  }else{
+    if(missing(lambda)) return(object$Residuals)
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    res <- interpolate(object$Residuals[id1,], object$Residuals[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+    mu <- interpolate(object$Fitted.values[id1,], object$Fitted.values[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+  }
   type <- match.arg(type)
   y <- object$Input$y
   weights <- object$Input$weights
@@ -348,25 +376,34 @@ residuals.islasso.path <- function(object, type=c("working", "response", "devian
 deviance.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(object$Info[, "deviance"])
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  dev <- interpolate(object$Info[id1, "deviance"], object$Info[id2, "deviance"], lambda.seq[id1], lambda.seq[id2], lambda)
+  if(nlambda == 1){
+    dev <- object$Info[1,"deviance"]
+  }else{
+    if(missing(lambda)) return(object$Info[, "deviance"])
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    dev <- interpolate(object$Info[id1, "deviance"], object$Info[id2, "deviance"], lambda.seq[id1], lambda.seq[id2], lambda)
+  }
   return(dev)
 }
 
 logLik.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
-  if(missing(lambda)) return(object$Info[, "logLik"])
-  if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
-  id1 <- rev(which(lambda >= lambda.seq))[1]
-  id2 <- which(lambda < lambda.seq)[1]
-  ll <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
-  df <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
-  phi <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
-  
+  if(nlambda == 1){
+    ll <- object$Info[1, "logLik"]
+    df <- object$Info[1, "df"]
+    phi <- object$Info[1, "phi"]
+  }else{
+    if(missing(lambda)) return(object$Info[, "logLik"])
+    if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
+    id1 <- rev(which(lambda >= lambda.seq))[1]
+    id2 <- which(lambda < lambda.seq)[1]
+    ll <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
+    df <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
+    phi <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
+  }
   out <- list(loglik = ll, df = df, object = object, phi = object$phi)
   class(out) <- "logLik.islasso.path"
   out

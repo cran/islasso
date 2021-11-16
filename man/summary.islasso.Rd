@@ -31,5 +31,6 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 \dontrun{
 #continues example from ?islasso
 summary(o, pval = .1) #print just the "borderline" significant coefficients
+summary(o, pval = .1, type.pval = "score") #print just the "borderline" significant coefficients
 }
 }

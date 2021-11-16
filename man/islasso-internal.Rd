@@ -36,8 +36,8 @@ islasso.path.fitter2(b, se, c, fix.c, l, alpha, x, y, weights, sigma2,
 interpolate(y1, y2, x1, x2, x.new)
 
 cislasso(object, a, ci)
-ci.fitted.islasso(object, newx, ci = NULL, conf.level=.95, 
-  only.ci = FALSE)
+ci.fitted.islasso(object, newx, ci = NULL, type.ci = "wald", 
+  conf.level=.95, only.ci = FALSE)
 }
 \author{Gianluca Sottile (\email{gianluca.sottile@unipa.it})}
 \details{These functions are not intended for users.}

@@ -11,9 +11,8 @@ print.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), ...){
   invisible(x)
 }
 
-summary.islasso <- function(object, pval=1, use.t=FALSE, ...){
+summary.islasso <- function(object, pval = 1, use.t = FALSE, ...){
   temp <- list(...)
-  type.pval <- "wald"
   
   coef <- object$coef 
   se <- object$se 
@@ -27,14 +26,8 @@ summary.islasso <- function(object, pval=1, use.t=FALSE, ...){
   df <- c(object$internal$p, rdf)
   h <- object$internal$hi
   if(object$family$family != "gaussian") use.t <- FALSE
-  
-  # if(type.pval == "wald"){
-    chival <- (coef / se)
-  # }
-  # else{
-  #   parm <- seq_along(coef)
-  #   chival <- sapply(parm, function(i) profile.islasso(object, parm = i, beta0 = 0))
-  # }
+
+  chival <- (coef / se)
   coefficients <- round(cbind(coef, se, h, chival), 6)
   type <- if(use.t) "t value" else "z value"
   pvalue <- if(type == "t value") 2 * pt(abs(chival), rdf, lower.tail = FALSE) else 2 * pnorm(-abs(chival))
@@ -144,7 +137,6 @@ plot.islasso <- function(x, ...){
 predict.islasso <- function(object, newdata, type=c("link", "response", "coefficients", "class"), 
                             se.fit = FALSE, level = .95, ...){
   type <- match.arg(type)
-  type.ci <- "WALD"
   family <- object$family
   
   tt <- terms(object)
@@ -179,8 +171,10 @@ predict.islasso <- function(object, newdata, type=c("link", "response", "coeffic
   
   if(se.fit){
     ci.fit <- NULL
-    if(type %in% c("link", "response")) ci.fit <- ci.fitted.islasso(object, X, NULL, conf.level = level)
-    if(type == "coefficients") ci.fit <- ci.fitted.islasso(object, X, NULL, conf.level = level, only.ci = TRUE)
+    ci <- confint(object)
+    type.ci <- "wald"
+    if(type %in% c("link", "response")) ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level)
+    if(type == "coefficients") ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level, only.ci = TRUE)
     
     out.ci <- switch(type,
                      "link"={ci.fit},

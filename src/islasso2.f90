@@ -16,6 +16,9 @@ double precision :: xm(p), xse(p), xtw(p,n), xtx(p,p), xtwy(p), lambdaadapt(p)
 double precision :: theta0(p), se0(p), grad(p), hess(p,p)
 double precision :: invH(p,p), tempMat(p,p), cov1(p,p), redf, s2, ind, ind2
 
+ind = 1.d0
+ind2 = 1.d0
+
 conv = 0
 info = 0
 
@@ -26,7 +29,7 @@ hi = 1.d0
 lambdaadapt = lambda / hi
 s2 = sigma2
 
-h = 0.25d0
+h = 0.1d0
 
 ! standardizing
 if(stand.eq.1) then
@@ -70,12 +73,6 @@ do i = 1, itmax
 
         ind2 = MAXVAL(abs(theta - theta0))
         if(ind2.le.tol) then
-            exit
-        end if
-
-        ! conv = 1 if j >= itmax
-        if(j.ge.itmax) then
-            conv = 1
             exit
         end if
 
@@ -134,6 +131,7 @@ end do
 itmax = i
 if(sigma2.lt.0) sigma2 = s2
 lambda = lambdaadapt
+tol = ind
 call gradient(theta, se, lambda, xtw, res, pi, n, p, grad2, alpha)
 
 ! if standardized beta and se, then return to the original scale

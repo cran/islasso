@@ -37,7 +37,7 @@ F77_SUB(gradient)(double *theta, double *se, double *lambda, double *xtw,
 
 void
 F77_SUB(hessian)(double *theta, double *se, double *lambda, double *xtx,
-                  double *pi, int *p, int *n, double *hess, double *alpha);
+                  double *pi, int *p, double *hess, double *alpha);
 
 void
   F77_SUB(islasso3)(double *X, double *y, int *n, int *p, double *theta, double *se,
