@@ -324,6 +324,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   nvars <- prep$nvars
   storage.mode(nvars) <- "integer"
   beta <- start$beta
+  if(any(beta == 0)) beta[beta == 0] <- 1E-5
   storage.mode(beta) <- "double"
   se <- start$se
   storage.mode(se) <- "double"
@@ -354,13 +355,13 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   storage.mode(setting$sigma2) <- "double"
   
   fit <- if(prep$tempFamily == "gaussian"){
-    .Fortran(C_islasso3, X = X, y = y, n = nobs, p = nvars, ntheta = beta+.01, se = se, cov = covar, lambda = Lambda, 
+    .Fortran(C_islasso3, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda, 
              alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, 
              phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
              stand = setting$stand, intercept = intercept, eta = eta, mu = mu, res = residuals, dev = double(1), weights = weights, 
              hi = double(nvars), edf = double(1), grad = double(nvars))
   }else{
-    .Fortran(C_islasso_glm2, X = X, y = y, n = nobs, p = nvars, ntheta = beta+.01, se = se, cov = covar, lambda = Lambda, 
+    .Fortran(C_islasso_glm2, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda, 
              alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, tol = setting$tol, 
              phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
              stand = setting$stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights, 

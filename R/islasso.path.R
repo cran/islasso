@@ -342,7 +342,8 @@ islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
   
   cov.unscaled <- start$covar
   se <- start$se
-  b <- start$beta + .01
+  b <- start$beta
+  if(any(b == 0)) b[b == 0] <- 1E-5
   
   setting <- prep$setting
   c <- setting$c

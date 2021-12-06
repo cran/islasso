@@ -5,6 +5,11 @@ x*********************************
 *********************************
 
 ===============
+version 1.4.2
+===============
+* Some bugs for binomial family fixed.
+
+===============
 version 1.4.1
 ===============
 * Some bugs fixed.
@@ -12,7 +17,7 @@ version 1.4.1
 ===============
 version 1.4.0
 ===============
-* New optimization algorithm for the 'islasso' method. The algorithm is now more stable for all the implemented distributions.
+* New optimization algorithm for the 'islasso' method. The algorithm is now stable for all the implemented distributions.
 * In aic.islasso function the available methods are "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC".
 * New class of functions named 'islasso.path' have been created. The main function 'islasso.path()' allows to build the coefficient profile for a fixed sequence of lambda values.
 * A new function GoF.islasso.path() allows to extract the optimal value of the tuning parameter which minimizes a fixed criterion. Available criteria are the same as in aic.islasso function.
