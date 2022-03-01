@@ -149,12 +149,14 @@ subroutine fn1(theta,se,lambda,xtx,pi,p,hess,alpha)
 implicit none
 integer :: p,i
 double precision :: theta(p),se(p),lambda(p),xtx(p,p),pi(p),hess(p,p)
-double precision :: pnm,temp1,alpha
+double precision :: theta2(p),pnm,temp1,alpha
 hess = xtx
+theta2 = theta
 do i = 1, p
-    temp1 = theta(i) / se(i)
+    if(abs(theta2(i)).lt.0.000000000001d0) theta2(i) = 0.000001d0
+    temp1 = theta2(i) / se(i)
     hess(i,i) = hess(i,i) + lambda(i) * alpha * ( pi(i) * (2.d0 * pnm(temp1, 0.d0, 1.d0) - 1.d0) + (1.d0 - pi(i)) * &
-        & (2.d0 * pnm(temp1, 0.d0, 0.00001d0) - 1.d0) ) / theta(i) + lambda(i) * (1.d0 - alpha)
+        & (2.d0 * pnm(temp1, 0.d0, 0.00001d0) - 1.d0) ) / theta2(i) + lambda(i) * (1.d0 - alpha)
 end do
 end subroutine fn1
 
