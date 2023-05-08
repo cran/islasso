@@ -2,9 +2,9 @@
 \alias{is.control}
 \title{Auxiliary for controlling islasso model fitting}
 \usage{
-is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
+is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = TRUE,
   trace = 0, nfolds = 5, seed = NULL, adaptive = FALSE, g = .5,
-  b0 = NULL, V0 = NULL, c = -1)
+  b0 = NULL, V0 = NULL, c = .5)
 }
 \arguments{
 \item{sigma2}{optional. The fixed value of dispersion parameter. If -1 (default) it is estimated from the data}
@@ -13,7 +13,7 @@ is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
 
 \item{itmax}{maximum number of iterations, default to 1000}
 
-\item{stand}{if TRUE, the covariates are standardized prior to fitting the model. However the coefficients are always returned on the original scale.}
+\item{stand}{if TRUE (default), the covariates are standardized prior to fitting the model. However the coefficients are always returned on the original scale.}
 
 \item{trace}{Should the iterative procedure be printed? 0: no printing, 1 = compact printing, 2 = enlarged printing, 3 = compact printing including Fisher scoring information (only used in glm family). }
 
@@ -29,8 +29,7 @@ is.control(sigma2 = -1, tol = 1E-05, itmax = 1E+3, stand = FALSE,
 
 \item{V0}{optional, starting value for the estimates covariance matrix, If NULL, the identity matrix is used.}
 
-\item{c}{the weight of the mixture in the induced smoothed lasso, the default is \code{c = -1}. \code{c = -1} means to compute it at each step of the iterative algorithm. }
-
+\item{c}{the weight of the mixture in the induced smoothed lasso, the default is \code{c = .5}. \code{c = -1} means to compute it at each step of the iterative algorithm. }
 }
 \description{
 Auxiliary function for controlling the islasso model fitting.

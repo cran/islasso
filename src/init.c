@@ -1,3 +1,4 @@
+
 #include <stdlib.h>
 #include <R_ext/Rdynload.h>
 #include <R_ext/Visibility.h>
@@ -28,8 +29,8 @@ static const R_FortranMethodDef FortEntries[] = {
     {"family", (DL_FUNC) &F77_SUB(family), 6},
     {"gradient", (DL_FUNC) &F77_SUB(gradient), 10},
     {"hessian", (DL_FUNC) &F77_SUB(hessian), 8},
-    {"islasso3", (DL_FUNC) &F77_SUB(islasso3), 29},
-    {"islasso_glm2", (DL_FUNC) &F77_SUB(islasso_glm2), 30},
+    {"islasso", (DL_FUNC) &F77_SUB(islasso), 30},
+    {"islasso_glm", (DL_FUNC) &F77_SUB(islasso_glm), 31},
     {"standardize", (DL_FUNC) &F77_SUB(standardize), 6},
     {"check_out", (DL_FUNC) &F77_SUB(check_out), 6},
     {"crossp", (DL_FUNC) &F77_SUB(crossp), 4},
@@ -38,6 +39,11 @@ static const R_FortranMethodDef FortEntries[] = {
     {"prod2", (DL_FUNC) &F77_SUB(prod2), 6},
     {"linear_predictor", (DL_FUNC) &F77_SUB(linear_predictor), 6},
     {"setdiff", (DL_FUNC) &F77_SUB(setdiff), 3},
+    {"islasso_red", (DL_FUNC) &F77_SUB(islasso_red), 14},
+    {"islasso_glm_red", (DL_FUNC) &F77_SUB(islasso_glm_red), 16},
+    
+    {"lminfl", (DL_FUNC) &F77_SUB(lminfl), 10},
+
     {NULL, NULL, 0}
 };
 

@@ -19,7 +19,7 @@ The Induced Smoothed lasso path
 }
 \usage{
 islasso.path(formula, family = gaussian(), lambda = NULL, nlambda = 100, 
-        lambda.min.ratio = ifelse(nobs < nvars, 1E-3, 1E-05), alpha = 1, data, 
+        lambda.min.ratio = ifelse(nobs < nvars, 1E-2, 1E-03), alpha = 1, data, 
         weights, subset, offset, contrasts = NULL, unpenalized, control = is.control())
 }
 %- maybe also 'usage' for other objects documented here.

@@ -2,15 +2,28 @@
 \alias{islasso}
 \alias{print.islasso}
 \alias{islasso.fit}
-\alias{coef.islasso}
+%\alias{coef.islasso}
 \alias{vcov.islasso}
 \alias{deviance.islasso}
-\alias{AIC.islasso}
-\alias{fitted.islasso}
+%\alias{AIC.islasso}
+%\alias{fitted.islasso}
 \alias{residuals.islasso}
 \alias{logLik.islasso}
-\alias{print.logLik.islasso}
+%\alias{print.logLik.islasso}
 \alias{model.matrix.islasso}
+
+\alias{cooks.distance.islasso}
+\alias{extractAIC.islasso}
+\alias{family.islasso}
+\alias{formula.islasso}
+\alias{influence.islasso}    
+\alias{model.frame.islasso}
+\alias{nobs.islasso}
+\alias{rstandard.islasso}
+\alias{rstudent.islasso}
+\alias{variable.names.islasso}
+\alias{weights.islasso}
+
 %- Also NEED an '\alias' for EACH other topic documented here.
 \title{
 The Induced Smoothed lasso
@@ -109,7 +122,7 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 }
 
 \seealso{
-\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
+\code{\link{islasso.fit}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{logLik.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
 }
 \examples{
 
@@ -143,8 +156,6 @@ AIC(o)
 logLik(o)
 
 \dontrun{
-confint(o, parm = 1:10)
-
 # for the interaction
 o <- islasso(y ~ X1 * X2, data = data.frame(y = y, X), 
              family = gaussian())

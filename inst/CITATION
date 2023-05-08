@@ -1,37 +1,28 @@
-citHeader("To cite islasso in publications use:")
-
-citEntry(entry = "Article",
+bibentry(bibtype = "Article",
   title        = "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression",
-  author       = personList(as.person("Giovanna Cilluffo"),
-                   as.person("Gianluca Sottile"),
-                   as.person("Stefania La Grutta"),
-		   as.person("Vito MR Muggeo")),
+  author       = c(person(given = "Giovanna", family = "Cilluffo"),
+                   person(given = "Gianluca", family = "Sottile"),
+                   person(given = "Stefania", family = "La Grutta"),
+		   person(given = "Vito MR", family = "Muggeo")),
   journal      = "Statistical Methods in Medical Research",
+  year         = "2020",
+  volume       = "29",
+  number       = "3",
+  pages        = "765--777",
+  doi          = "10.1177/0962280219842890",
+  header       = "To cite islasso in publications use:"
+)
+
+bibentry(bibtype = "Manual",
+  title        = "The R package islasso: estimation and hypothesis testing in lasso regression",
+  author       = c(person(given = "Giovanna", family = "Cilluffo"),
+                   person(given = "Gianluca", family = "Sottile"),
+		   person(given = "Vito MR", family = "Muggeo")),
+  journal      = "Researchgate",
   year         = "2019",
   volume       = "0",
   number       = "0",
-  pages        = "1--13",
-  doi 	       = "10.1177/0962280219842890",
-
-  textVersion  =
-  paste("Giovanna Cilluffo, Gianluca Sottile, Stefania La Grutta, Vito MR Muggeo (2019).",
-        "The Induced Smoothed lasso: A practical framework for hypothesis testing in high dimensional regression.",
-        "Statistical Methods in Medical Research, 0(0), 1-13.",
-        "doi:10.1177/0962280219842890.")
-)
-
-citEntry(entry = "Manual",
-  title        = "The R package islasso: estimation and hypothesis testing in lasso regression",
-  author       = personList(as.person("Gianluca Sottile"),
-                   as.person("Giovanna Cilluffo"),
-		               as.person("Vito MR Muggeo")),
-  year         = "2019",
-  url          = "https://www.researchgate.net/publication/333853040_The_R_package_islasso_estimation_and_hypothesis_testing_in_lasso_regression",
-  doi 	       = "10.13140/RG.2.2.16360.11521",
-
-  textVersion  =
-  paste("Gianluca Sottile, Giovanna Cilluffo, Vito MR Muggeo (2019).",
-        "The R package islasso: estimation and hypothesis testing in lasso regression.",
-        "Technical Report on ResearchGate.",
-        "doi:10.13140/RG.2.2.16360.11521.")
+  pages        = "1--10",
+  doi          = "10.13140/RG.2.2.16360.11521",
+  header       = "To cite islasso manual in publications use:"
 )

@@ -4,7 +4,8 @@
 \alias{plot.confint.islasso}
 \title{confint method for \code{islasso} objects}
 \usage{
-\method{confint}{islasso}(object, parm, level = 0.95, trace = FALSE, ...)
+\method{confint}{islasso}(object, parm, level = 0.95,
+  type.ci = "wald", trace = TRUE, ...)
 }
 \arguments{
 \item{object}{a fitted model object of class "islasso".}
@@ -13,6 +14,8 @@
 If missing, all parameters are considered.}
 
 \item{level}{the confidence level required.}
+
+\item{type.ci}{Only Wald-type confidence intervals are implemented yet! type.ci = "wald" estimates and standard errors are used to build confidence interval}
 
 \item{trace}{if TRUE (default) a bar shows the iterations status.}
 
@@ -26,7 +29,7 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 }
 
 \seealso{
-\code{\link{islasso.fit}}, \code{\link{coef.islasso}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{AIC.islasso}}, \code{\link{logLik.islasso}}, \code{\link{fitted.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
+\code{\link{islasso.fit}}, \code{\link{summary.islasso}}, \code{\link{residuals.islasso}}, \code{\link{logLik.islasso}}, \code{\link{predict.islasso}} and \code{\link{deviance.islasso}} methods.
 }
 \examples{
 
@@ -49,9 +52,8 @@ y <- mu + rnorm(n, 0, sigma)
 o <- islasso(y ~ ., data = data.frame(y = y, X), 
              family = gaussian())
 
-\dontrun{
-ci <- confint(o, parm = 1:10)
+ci <- confint(o, type.ci = "wald", parm = 1:10)
 ci
 plot(ci)
-}
+
 }

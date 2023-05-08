@@ -6,16 +6,17 @@ Produces a coefficient profile plot of the coefficient paths for a fitted "islas
 }
 \usage{
 \method{plot}{islasso.path}(x, 
-  yvar = c("coefficients", "se", "gradient", "weight", 
-    "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC"), 
-  label = FALSE, cex.lab = 1, ...)
+  yvar = c("coefficients", "se", "gradient", "weight", "gof"), 
+  gof = c("none", "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC"), 
+  label = FALSE, legend = FALSE, ...)
 }
 \arguments{
 \item{x}{an object of class \code{islasso}, usually, a result of a call to \code{\link{islasso.path}}.}
-\item{yvar}{What is on the Y-axis. "coef" plot the log-lambda sequence against the coefficients; "se" plot the log-lambda sequence against the standard deviations; "gradient" plot the log-lambda sequence against the gradient; "weight" plot the log-lambda sequence against the mixture weight of the islasso method; "AIC", "BIC", "AICc", "eBIC", "GCV" and "GIC" plot the log-lambda sequence against the chosen criterion.}
-\item{label}{a logical flag indicating if some labels have to be added on each plot.}
-\item{cex.lab}{a numerical scalar giving the amount by which plotting labels should be scaled.}
-\item{...}{other graphical parameters for the plot}
+\item{yvar}{What is on the Y-axis. "coef" plot the log-lambda sequence against the coefficients; "se" plot the log-lambda sequence against the standard deviations; "gradient" plot the log-lambda sequence against the gradient; "weight" plot the log-lambda sequence against the mixture weight of the islasso method; "gof" plot the log-lambda sequence against the chosen criterion.}
+\item{gof}{the chosen criterion to highlight the active variables. "none" doesn't highlight active variables.}
+\item{label}{a logical flag indicating if some labels have to be added.}
+\item{legend}{a logical flag indicating if legend has to be shown.}
+\item{...}{other graphical parameters for the plot, i.e., main, xlab, ylab, xlim, ylim, lty, col, lwd, cex.axis, cex.lab, cex.main, gof_lty, gof_col and gof_lwd. The last three parameters are used to modify aspects of the legend, and of the goodness of fit measure used.}
 }
 
 \details{
@@ -39,17 +40,9 @@ A coefficient profile plot is produced for Induced Smoothing Lasso Model path.
   o <- islasso.path(y ~ ., data = data.frame(y = y, X), 
                     family = gaussian())
   par(mfrow = c(2, 2))
-  plot(o, yvar = "coefficients")
-  plot(o, yvar = "se")
-  plot(o, yvar = "gradient")
-  plot(o, yvar = "weight")
-  
-  par(mfrow = c(2, 3))
-  plot(o, yvar = "AIC")
-  plot(o, yvar = "BIC")
-  plot(o, yvar = "AICc")
-  plot(o, yvar = "eBIC")
-  plot(o, yvar = "GCV")
-  plot(o, yvar = "GIC")
+  plot(o, yvar = "coefficients", gof = "AICc", label = TRUE)
+  plot(o, yvar = "se", gof = "AICc")
+  plot(o, yvar = "gradient", gof = "AICc")
+  plot(o, yvar = "gof", gof = "AICc")
 }
 }

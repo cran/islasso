@@ -36,9 +36,9 @@ void F77_SUB(islasso_trace1_2_2)(double *eps, int *i, double *lmb, double *dev, 
     Rprintf("     ||(SEn - SEo)||_1 = %2.8f\n", *ind);
 }
 
-void F77_SUB(islasso_trace1_8)() {
+void F77_SUB(islasso_trace1_8)(int *i) {
     Rprintf("\n===================================");
-    Rprintf("\nConvergence criterion is met!\n\n");
+    if(*i == 1)Rprintf("\nConvergence criterion is met!\n\n");
 }
 
 void F77_SUB(islasso_trace2_5)(double *eps, double *lmb) {

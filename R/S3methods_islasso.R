@@ -11,35 +11,43 @@ print.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), ...){
   invisible(x)
 }
 
-summary.islasso <- function(object, pval = 1, use.t = FALSE, ...){
+summary.islasso <- function(object, pval = 1, which, use.t = FALSE, type.pval = "wald", ...){
   temp <- list(...)
+  type.pval <- match.arg(type.pval)
+  if(type.pval != "wald") stop("Only Wald-type confidence intervals are implemented yet!")
   
-  coef <- object$coef 
-  se <- object$se 
-  aic <- object$aic
   n <- object$internal$n
   p <- object$internal$p
+  if(missing(which)) which <- seq_len(p)
+  coef <- object$coef[which]
+  se <- object$se[which]
+  aic <- object$aic
   
   res <- residuals(object, type="deviance")
   dispersion <- object$dispersion
   rdf <- object$df.residual
   df <- c(object$internal$p, rdf)
-  h <- object$internal$hi
+  h <- object$internal$hi[which]
   if(object$family$family != "gaussian") use.t <- FALSE
-
-  chival <- (coef / se)
+  
+  if(type.pval == "wald"){
+    chival <- (coef / se)
+  }
+  
   coefficients <- round(cbind(coef, se, h, chival), 6)
   type <- if(use.t) "t value" else "z value"
   pvalue <- if(type == "t value") 2 * pt(abs(chival), rdf, lower.tail = FALSE) else 2 * pnorm(-abs(chival))
   ptype <- if(type == "t value") "Pr(>|t|)" else "Pr(>|z|)"
   coefficients <- cbind(coefficients, pvalue)
   
-  dimnames(coefficients) <- list(object$internal$nms, c("Estimate", "Std. Error", "Df", type, ptype))
+  dimnames(coefficients) <- list(object$internal$nms[which], c("Estimate", "Std. Error", "Df", type, ptype))
   
-  out <- list(coefficients=coefficients, dispersion=dispersion, df=df, res=res, aic=aic, lambda=object$lambda, nulldev=object$null.deviance,
-              dev=object$deviance, df.null=object$df.null, df.res=object$df.null-(object$rank-1*object$internal$intercept*object$internal$hi[1]),
-              family=object$family, iter=object$iter, pval=pval, unpenalized=object$internal$unpenalized, 
-              temp=temp, call=object$call)
+  out <- list(coefficients = coefficients, dispersion = dispersion, df = df, 
+              res = res, aic = aic, lambda = object$lambda, nulldev = object$null.deviance,
+              dev = object$deviance, df.null = object$df.null, 
+              df.res = object$df.null - (object$rank - 1*object$internal$intercept*object$internal$hi[1]),
+              family = object$family, iter = object$iter, pval = pval, unpenalized = object$internal$unpenalized[which], 
+              temp = temp, call = object$call)
   
   class(out) <- "summary.islasso"
   return(out)
@@ -52,18 +60,18 @@ print.summary.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), .
   df <- x$df
   rdf <- df[2L]
   cat("Residuals:\n", sep="")
-  if(rdf > 5L){
+  # if(rdf > 5L){
     nam <- c("Min", "1Q", "Median", "3Q", "Max")
     zz <- zapsmall(quantile(resid), digits + 1L)
     rq <- structure(zz, names = nam)
     print(rq, digits = digits, ...)
-  }else{
-    if(rdf > 0L){
-      print(resid, digits = digits, ...)
-    }else{
-      cat("ALL", df[1L], "residuals are 0: no residual degrees of freedom!")
-    }
-  }
+  # }else{
+  #   if(rdf > 0L){
+  #     print(resid, digits = digits, ...)
+  #   }else{
+  #     cat("ALL", df[1L], "residuals are 0: no residual degrees of freedom!")
+  #   }
+  # }
   cat("\n")
   coefs <- x$coefficients
   if(sum(coefs[, 5] <= x$pval) == 0) warning("No coefficients lower than the selected p-value. The lowest p-value is printed.")
@@ -98,148 +106,273 @@ plot.islasso <- function(x, ...){
   
   family <- x$family
   nX <- model.matrix(x)
-  y <- x$internal$y.internal
+  y <- x$y
   eta <- x$linear.predictors
   mu <- x$fitted.values
-  dev <- residuals(x, type="deviance")
-  sdev <- dev/sqrt(x$dispersion)
+  dev <- residuals(x, type = "deviance")
+  sdev <- dev / sqrt(x$dispersion)
   
-  pea <- residuals(x, type="pearson")
-  spea <- pea/sqrt(x$dispersion)
+  pea <- residuals(x, type = "pearson")
+  spea <- pea / sqrt(x$dispersion)
   
-  w2 <- x$internal$wt
+  w2 <- x$weights
   invH <- x$internal$invH
   
   w <- sqrt(w2)
-  WX <- nX*w
+  WX <- nX * w
   
   H <- WX %*% invH %*% t(WX)
   h <- diag(H)
   p <- x$rank
-  rp <- spea/sqrt(1 - h)
-  rd <- sdev/sqrt(1 - h)
+  rp <- spea / sqrt(1 - h)
+  rd <- sdev / sqrt(1 - h)
   res <- sign(sdev) * sqrt(sdev^2 + h * rp^2)
   
   opar <- par()$mfrow
   on.exit(par(mfrow=opar))
-  par(mfrow=c(2,2))
-  plot(eta, res, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, xlab="Linear predictor", ylab="Residuals")
+  par(mfrow = c(2, 2))
+  plot(eta, res, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, 
+       xlab="Linear predictor", ylab="Residuals")
   
-  qqNorm(na.omit(rd), cex.lab=L$cex.lab, cex.axis=L$cex.axis, ylab="Ordered deviance residuals")
+  qqNorm(na.omit(rd), cex.lab=L$cex.lab, cex.axis=L$cex.axis, 
+         ylab="Ordered deviance residuals")
   
-  plot(spea^2 ~ mu, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, xlab="Fitted values", ylab="Squared stand Pearson residuals", main="Variance function")
+  plot(spea^2 ~ mu, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, 
+       xlab="Fitted values", ylab="Squared stand Pearson residuals", main="Variance function")
   
-  zmod <- eta + (y-mu)/(w2)
-  plot(zmod ~ eta, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, xlab="Linear predictor", ylab="Working vector", main="Link function")
+  zmod <- eta + (y - mu) / w2
+  plot(zmod ~ eta, cex=L$cex, pch=L$pch, cex.lab=L$cex.lab, cex.axis=L$cex.axis, 
+       xlab="Linear predictor", ylab="Working vector", main="Link function")
   abline(lm(zmod ~ eta), col=L$col, lwd=L$lwd)
+  
+  invisible()
 }
 
-predict.islasso <- function(object, newdata, type=c("link", "response", "coefficients", "class"), 
-                            se.fit = FALSE, level = .95, ...){
+predict.islasso <- function (object, newdata = NULL, 
+                             type = c("link", "response", "coefficients", "class", "terms"), 
+                             se.fit = FALSE, ci = NULL, type.ci = "wald", level = 0.95,
+                             terms = NULL, na.action = na.pass, ...) {
   type <- match.arg(type)
-  family <- object$family
+  type.ci <- match.arg(type.ci)
+  if(type.ci != "wald") stop("Only Wald-type confidence intervals are implemented yet!")
+  ci.fit <- NULL
+  na.act <- object$na.action
+  object$na.action <- NULL
   
-  tt <- terms(object)
-  if (missing(newdata) || is.null(newdata)) {
-    X <- model.matrix(object)
-    offset <- object$offset
-  }
+  if(type == "class" & family(object)$family != "binomial") 
+    stop(gettextf("Type 'class' is available only for the %s family", sQuote(binomial()$family)), domain=NA)
+  
+  if(type == "coefficients") {
+    fit <- coef(object)
+    if(se.fit) ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level, only.ci = TRUE)
+  } 
   else {
-    Terms <- delete.response(tt)
-    m <- model.frame(Terms, newdata, na.action = na.pass, xlev = object$xlevels)
-    if (!is.null(cl <- attr(Terms, "dataClasses"))) .checkMFClasses(cl, m)
-    X <- model.matrix(Terms, m, contrasts.arg = object$contrasts)
-    offset <- rep(0, nrow(X))
-    if (!is.null(off.num <- attr(tt, "offset"))) 
-      for (i in off.num) offset <- offset + eval(attr(tt, "variables")[[i + 1]], newdata)
-    if (!is.null(object$call$offset)) 
-      offset <- offset + eval(object$call$offset, newdata)
+    if (missing(newdata)) {
+      fit <- switch(type, 
+                    "response" = , "class" = , 
+                    "link" = object$linear.predictors, 
+                    "terms" = predislasso(object, type = "terms", terms = terms))
+      X <- model.matrix(object)
+    }
+    else {
+      fit <- predislasso(object, newdata, 
+                          type = if (type %in% c("link", "class")) 
+                            "response"
+                          else type, terms = terms, na.action = na.action)
+      X <- attr(fit, "X")
+    }
+    attr(fit, "X") <- NULL
+    if (missing(newdata) && !is.null(na.act)) fit <- napredict(na.act, fit)
+    if(se.fit & !(type %in% c("class", "terms"))) {
+      ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level)
+      if (missing(newdata) && !is.null(na.act)) {
+        ci.fit[, 1L] <- napredict(na.act, ci.fit[, 1L])
+        ci.fit[, 2L] <- napredict(na.act, ci.fit[, 2L])
+      }
+    }
   }
-  beta <- object$coefficients
-  predictor <- drop(X %*% beta)
-  if (!is.null(offset)) predictor <- predictor + offset
+  out <- if(type != "terms") cbind("Fit" = fit, ci.fit) else fit
   
-  if(type == "class" & family$family != "binomial") stop(gettextf("Type 'class' is available only for the %s family", sQuote(family$family)), domain=NA)
+  out <- switch(type, 
+         "response" = family(object)$linkinv(out), 
+         "class" = {
+           mu <- family$linkinv(out)
+           1 * I(mu >= .5)
+         },
+         "terms" = out,
+         "coefficients" =, "link" = drop(out))
   
-  out <- switch(type,
-                "link"={drop(predictor)},
-                "response"={family$linkinv(predictor)},
-                "coefficients"={coef(object)},
-                "class"={
-                  mu <- family$linkinv(predictor)
-                  1*I(mu >= .5)})
-  
-  if(se.fit){
-    ci.fit <- NULL
-    ci <- confint(object)
-    type.ci <- "wald"
-    if(type %in% c("link", "response")) ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level)
-    if(type == "coefficients") ci.fit <- ci.fitted.islasso(object, X, ci, type.ci = type.ci, conf.level = level, only.ci = TRUE)
-    
-    out.ci <- switch(type,
-                     "link"={ci.fit},
-                     "response"={family$linkinv(ci.fit)},
-                     "coefficients"={ci.fit})
-    out <- cbind("Fit" = out, out.ci)
-  }
-  
-  return(out)
+  drop(out)
 }
+
+# model.matrix.islasso <- function (object, ...) {
+#   model.matrix(object$terms, object$model, object$contrasts, ...)
+# }
 
 model.matrix.islasso <- function (object, ...) {
-  model.matrix(object$terms, object$model, object$contrasts, ...)
+  data <- model.frame(object, xlev = object$xlevels, ...)
+  if (exists(".GenericCallEnv", inherits = FALSE)) 
+    NextMethod("model.matrix", data = data, contrasts.arg = object$contrasts)
+  else {
+    dots <- list(...)
+    dots$data <- dots$contrasts.arg <- NULL
+    do.call("model.matrix.default", c(list(object = object, 
+                                           data = data, contrasts.arg = object$contrasts), 
+                                      dots))
+  }
 }
 
-coef.islasso <- function(object, ...){
-  temp <- list(...)
-  if(is.null(temp$unbias)) temp$unbias <- FALSE
-  if(!temp$unbias) return(object$coef) else return(object$beta.unbias)
-}
+# coef.islasso <- function(object, ...){
+#   temp <- list(...)
+#   if(is.null(temp$unbias)) temp$unbias <- FALSE
+#   if(!temp$unbias) return(object$coef) else return(object$beta.unbias)
+# }
 
-vcov.islasso <- function(object, ...){
-  object$internal$vcov
-}
+vcov.islasso <- function(object, ...) object$internal$vcov
 
-fitted.islasso <- function(object, ...){
-  return(object$fitted.values)
-}
+# fitted.islasso <- function(object, ...) object$fitted.values
 
-residuals.islasso <- function(object, type=c("working", "response", "deviance", "pearson"), ...){
+residuals.islasso <- function (object, type = c("deviance", "pearson", 
+                                                "working", "response", "partial"), ...) {
   type <- match.arg(type)
-  y <- object$internal$y.internal
+  y <- object$y
+  r <- object$residuals
   mu <- object$fitted.values
-  weights <- object$internal$weights
-  family <- object$family
-  
-  switch(type,
-         "working"=return(object$residuals),
-         "response"=return(y-mu),
-         "deviance"=return(sign(y-mu)*sqrt(family$dev.resids(y, mu, weights))),
-         "pearson"=return((y-mu)*sqrt(weights)/sqrt(family$variance(mu))))
+  wts <- object$prior.weights
+  switch(type, deviance = , pearson = , 
+         response = if (is.null(y)) {
+           mu.eta <- object$family$mu.eta
+           eta <- object$linear.predictors
+           y <- mu + r * mu.eta(eta)
+  })
+  res <- switch(type, 
+                deviance = if (object$df.residual > 0) {
+                  d.res <- sqrt(pmax((object$family$dev.resids)(y, mu, wts), 0))
+                  ifelse(y > mu, d.res, -d.res)
+                  } else rep.int(0, length(mu)), 
+                pearson = (y - mu) * sqrt(wts) / sqrt(object$family$variance(mu)), 
+                working = r, response = y - mu, partial = r)
+  if (!is.null(object$na.action)) 
+    res <- naresid(object$na.action, res)
+  if (type == "partial") 
+    res <- res + predict(object, type = "terms")
+  res
 }
 
-deviance.islasso <- function(object, ...){
-  return(object$deviance)
-}
+deviance.islasso <- function(object, ...) object$deviance
 
-logLik.islasso <- function(object, ...){
+# logLik.islasso <- function(object, ...){
+#   p <- object$rank
+#   val <- p - object$aic/2
+#   
+#   out <- list(loglik=val, df=p, object=object, phi=object$phi)
+#   class(out) <- "logLik.islasso"
+#   out
+# }
+
+logLik.islasso <- function (object, ...) {
+  if (!missing(...)) warning("extra arguments discarded")
+  fam <- family(object)$family
   p <- object$rank
+  if (fam %in% c("gaussian", "Gamma", "inverse.gaussian")) 
+    p <- p + 1
   val <- p - object$aic/2
-  
-  out <- list(loglik=val, df=p, object=object, phi=object$phi)
-  class(out) <- "logLik.islasso"
-  out
+  attr(val, "nobs") <- sum(!is.na(object$residuals))
+  attr(val, "df") <- p
+  class(val) <- "logLik"
+  val
 }
 
-print.logLik.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), ...){
-  cat("\n'log Lik.' ", paste(format(c(x$loglik), digits=digits), collapse = ", "),
-      " (df=", format(x$df), ")\n\n", sep = "")
-  invisible(x)
+# print.logLik.islasso <- function(x, digits=max(3L, getOption("digits") - 3L), ...){
+#   cat("\n'log Lik.' ", paste(format(c(x$loglik), digits=digits), collapse = ", "),
+#       " (df=", format(x$df), ")\n\n", sep = "")
+#   invisible(x)
+# }
+
+# AIC.islasso <- function(object, k = 2, ...){
+#   df <- object$rank
+#   ll <- logLik(object)$loglik
+#   aic <- -2*ll + k*df
+#   return(aic)
+# }
+
+extractAIC.islasso <- function (fit, scale = 0, k = 2, ...) {
+  n <- length(fit$residuals)
+  edf <- n - fit$df.residual
+  aic <- fit$aic
+  c(edf, aic + (k - 2) * edf)
 }
 
-AIC.islasso <- function(object, k=2, ...){
-  df <- object$rank
-  ll <- logLik(object)$loglik
-  aic <- -2*ll + k*df
-  return(aic)
+family.islasso <- function (object, ...) object$family
+
+formula.islasso <- function (x, ...) {
+  form <- x$formula
+  if (!is.null(form)) {
+    form <- formula(x$terms)
+    environment(form) <- environment(x$formula)
+    form
+  }
+  else formula(x$terms)
+}
+
+model.frame.islasso <- function (formula, ...) {
+  dots <- list(...)
+  nargs <- dots[match(c("data", "na.action", "subset"), names(dots), 0L)]
+  if (length(nargs) || is.null(formula$model)) {
+    fcall <- formula$call
+    fcall$method <- "model.frame"
+    fcall[[1L]] <- quote(stats::glm)
+    fcall[names(nargs)] <- nargs
+    env <- environment(formula$terms) %||% parent.frame()
+    eval(fcall, env)
+  }
+  else formula$model
+}
+
+nobs.islasso <- function (object, ...) if (!is.null(w <- object$prior.weights)) sum(w != 0) else length(object$residuals)
+
+weights.islasso <- function (object, type = c("prior", "working"), ...) {
+  type <- match.arg(type)
+  res <- if (type == "prior") 
+    object$prior.weights
+  else object$weights
+  if (is.null(object$na.action)) 
+    res
+  else naresid(object$na.action, res)
+}
+
+variable.names.islasso <- function (object, ...) object$internal$nms
+
+influence.islasso <- function (model, do.coef = TRUE, ...) {
+  res <- is.influence(model, do.coef = do.coef, ...)
+  pRes <- na.omit(residuals(model, type = "pearson"))[model$prior.weights != 0]
+  pRes <- naresid(model$na.action, pRes)
+  names(res)[names(res) == "wt.res"] <- "dev.res"
+  c(res, list(pear.res = pRes))
+}
+
+cooks.distance.islasso <- function (model, infl = influence(model, do.coef = FALSE), res = infl$pear.res, 
+                                    dispersion = summary(model)$dispersion, hat = infl$hat, ...) {
+  p <- model$rank
+  res <- (res/(1 - hat))^2 * hat/(dispersion * p)
+  res[is.infinite(res)] <- NaN
+  res
+}
+
+rstandard.islasso <- function (model, infl = influence(model, do.coef = FALSE), 
+                               type = c("deviance", "pearson"), ...) {
+  type <- match.arg(type)
+  res <- switch(type, pearson = infl$pear.res, infl$dev.res)
+  res <- res/sqrt(summary(model)$dispersion * (1 - infl$hat))
+  res[is.infinite(res)] <- NaN
+  res
+}
+
+rstudent.islasso <- function (model, infl = influence(model, do.coef = FALSE), ...) {
+  r <- infl$dev.res
+  r <- sign(r) * sqrt(r^2 + (infl$hat * infl$pear.res^2)/(1 - infl$hat))
+  r[is.infinite(r)] <- NaN
+  if (any(family(model)$family == c("binomial", "poisson"))) 
+    r
+  else r/infl$sigma
 }

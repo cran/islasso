@@ -46,13 +46,25 @@ summary.islasso.path <- function(object, pval = 1, use.t = FALSE, lambda, ...){
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]
     id2 <- which(lambda < lambda.seq)[1]
-    coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-    se <- interpolate(object$SE[id1,], object$SE[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
-    aic <- interpolate(object$GoF[id1, "AIC"], object$GoF[id2, "AIC"], lambda.seq[id1], lambda.seq[id2], lambda)
-    dispersion <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
-    df0 <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
-    logLik <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
-    iter <- object$Info[id1, "iter"]
+    if(any(is.na(c(id1, id2)))) {
+      id1 <- c(id1, id2)[!is.na(c(id1, id2))]
+      coef <- object$Coef[id1,]
+      se <- object$SE[id1,]
+      aic <- object$GoF[id1, "AIC"]
+      dispersion <- object$Info[id1, "phi"]
+      df0 <- object$Info[id1, "df"]
+      logLik <- object$Info[id1, "logLik"]
+      iter <- object$Info[id1, "iter"]
+    }
+    else {
+      coef <- interpolate(object$Coef[id1,], object$Coef[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+      se <- interpolate(object$SE[id1,], object$SE[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
+      aic <- interpolate(object$GoF[id1, "AIC"], object$GoF[id2, "AIC"], lambda.seq[id1], lambda.seq[id2], lambda)
+      dispersion <- interpolate(object$Info[id1, "phi"], object$Info[id2, "phi"], lambda.seq[id1], lambda.seq[id2], lambda)
+      df0 <- interpolate(object$Info[id1, "df"], object$Info[id2, "df"], lambda.seq[id1], lambda.seq[id2], lambda)
+      logLik <- interpolate(object$Info[id1, "logLik"], object$Info[id2, "logLik"], lambda.seq[id1], lambda.seq[id2], lambda)
+      iter <- object$Info[id1, "iter"]
+    }
   }
   
   
@@ -62,10 +74,10 @@ summary.islasso.path <- function(object, pval = 1, use.t = FALSE, lambda, ...){
   n <- object$Input$n
   p <- object$Input$p
   
-  x <- object$Input$x
-  y <- object$Input$y
-  offset <- object$Input$offset
-  family <- object$Input$family
+  x <- model.matrix(object)
+  y <- object$y
+  offset <- object$offset
+  family <- object$family
   
   eta <- drop(x %*% coef) + offset
   mu <- family$linkinv(eta)
@@ -85,7 +97,7 @@ summary.islasso.path <- function(object, pval = 1, use.t = FALSE, lambda, ...){
   
   # null model
   intercept <- object$Input$intercept
-  weights <- object$Input$weights
+  weights <- object$prior.weights
   wtdmu <- if(intercept) sum(weights * y)/sum(weights) else family$linkinv(offset)
   nulldev <- sum(family$dev.resids(y, wtdmu, weights))
   n.ok <- n - sum(weights == 0)
@@ -137,88 +149,93 @@ print.summary.islasso.path <- function(x, digits = max(3L, getOption("digits") -
   invisible(x)
 }
 
-plot.islasso.path <- function (x, yvar = c("coefficients", "se", "gradient", "weight", "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC"), 
-                               label = FALSE, cex.lab = 1, ...) {
+plot.islasso.path <- function (x, yvar = c("coefficients", "se", "gradient", "weight", "gof"), 
+                               gof = c("none", "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC"), 
+                               label = FALSE, legend = FALSE, ...) {
   object <- x
+  if(!inherits(object, "islasso.path")) stop("x is not an object of islasso.path class")
   label <- abs(label)
   yvar <- match.arg(yvar)
+  gof <- match.arg(gof)
+  if(yvar == "gof" & gof == "none") stop("You have to select one criterion between AIC, BIC, AICc, eBIC, GCV, GIC")
   id.best <- apply(object$GoF, 2, which.min)
   lambda <- object$Info[, "lambda"]
+  loglambda <- log(lambda)
   nlambda <- length(lambda)
   if(nlambda == 1) stop("no path in islasso.path fit!")
-  if (yvar == "AIC") {
-    # AIC
-    plot(log(lambda), object$GoF[, "AIC", drop = FALSE], type = 'l', ylab = 'AIC', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 2, lwd = 2)
-  }
-  if (yvar == "BIC") {
-    # BIC
-    plot(log(lambda), object$GoF[, "BIC", drop = FALSE], type = 'l', ylab = 'BIC', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["BIC"]]), col = 2, lty = 2, lwd = 2)
-  }
-  if (yvar == "AICc") {
-    # AICc
-    plot(log(lambda), object$GoF[, "AICc", drop = FALSE], type = 'l', ylab = 'AICc', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["AICc"]]), col = 2, lty = 2, lwd = 2)
-  }
-  if (yvar == "eBIC") {
-    # BIC
-    plot(log(lambda), object$GoF[, "eBIC", drop = FALSE], type = 'l', ylab = 'eBIC', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["eBIC"]]), col = 2, lty = 2, lwd = 2)
-  }
-  if (yvar == "GCV") {
-    # GCV
-    plot(log(lambda), object$GoF[, "GCV", drop = FALSE], type = 'l', ylab = 'GCV', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["GCV"]]), col = 2, lty = 2, lwd = 2)
-  }
-  if (yvar == "GIC") {
-    # GCV
-    plot(log(lambda), object$GoF[, "GIC", drop = FALSE], type = 'l', ylab = 'GIC', xlab = 'log Lambda', col = 'gray', ...)
-    abline(v = log(lambda[id.best["GIC"]]), col = 2, lty = 2, lwd = 2)
-  }
+  
   intercept <- object$Input$intercept
   coef1 <- object$Coef
   if(intercept) coef1 <- coef1[, -1]
-  nlambda <- length(lambda)
+  unactive <- abs(coef1[id.best[gof], ]) <= 1E-6
+  active <- !unactive
+  if(gof == "none") active <- rep(TRUE, length(active))
+  
+  dots <- list(...)
+  if(is.null(dots$main)) dots$main <- ""
+  if(is.null(dots$lty)) dots$lty <- if(gof != "none") ifelse(unactive, 2L, 1L) else 1L
+  if(is.null(dots$col)) dots$col <- if(gof != "none") ifelse(unactive, "gray80", "gray20") else "gray50"
+  if(is.null(dots$lwd)) dots$lwd <- 1L
+  if(is.null(dots$gof_lty)) dots$gof_lty <- 3L
+  if(is.null(dots$gof_col)) dots$gof_col <- "red"
+  if(is.null(dots$gof_lwd)) dots$gof_lwd <- 1L
+  if(is.null(dots$cex.axis)) dots$cex.axis <- 1L
+  if(is.null(dots$cex.lab)) dots$cex.lab <- 1L
+  if(is.null(dots$cex.main)) dots$cex.main <- 1L
+  
   if (yvar == "coefficients") {
-    matplot(log(lambda), coef1, type = "l", xlab = "log Lambda", ylab = "Coefficients", xlim = range(log(lambda)) + c(-label, 0), ...)
-    abline(h = 0, lty = 1, col = 'gray')
-    if (label) text(x = min(log(lambda)) - label, y = coef1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
-    abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
-    legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+    if(is.null(dots$xlab)) dots$xlab <- "log Lambda"
+    if(is.null(dots$ylab)) dots$ylab <- "Coefficients"
+    if(is.null(dots$xlim)) dots$xlim <- range(loglambda) + c(-label, legend)
+    if(is.null(dots$ylim)) dots$ylim <- range(coef1[1, ])
+    
+    matplot(loglambda, coef1, type = "l", xlab = dots$xlab, ylab = dots$ylab, main = dots$main, 
+            xlim = dots$xlim, ylim = dots$ylim, lty = dots$lty, col = dots$col, lwd = dots$lwd,
+            cex.axis = dots$cex.axis, cex.lab = dots$cex.lab, cex.main = dots$cex.main)
+    abline(h = 0, lty = 1, col = "gray50")
+    if (label) text(x = min(loglambda) - label, y = coef1[1, active], 
+                    labels = colnames(coef1)[active], cex = dots$cex.lab, xpd = TRUE, pos = 4)
+    if(gof != "none") abline(v = loglambda[id.best[gof]], col = dots$gof_col, lty = dots$gof_lty, lwd = dots$gof_lwd)
+    if(legend & gof != "none") legend('topright', legend = paste0("min.", gof), lty = dots$gof_lty, col = dots$gof_col, 
+                                      lwd = dots$gof_lwd, bty = "n", cex = dots$cex.lab)
   }
   if (yvar == "se") {
     se1 <- object$SE
     if(intercept) se1 <- se1[, -1]
-    matplot(log(lambda), se1, type = "l", xlab = "log Lambda", ylab = "Std.Errs", xlim = range(log(lambda)) + c(-label,0 ), ...)
-    abline(h = 0, lty = 1, col = 'gray')
-    if (label) text(x = min(log(lambda)) - label, y = se1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
-    abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
-    legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+    
+    if(is.null(dots$xlab)) dots$xlab <- "log Lambda"
+    if(is.null(dots$ylab)) dots$ylab <- "Std.Errs"
+    if(is.null(dots$xlim)) dots$xlim <- range(loglambda) + c(-label, legend)
+    if(is.null(dots$ylim)) dots$ylim <- range(se1)
+    
+    matplot(loglambda, se1, type = "l", xlab = dots$xlab, ylab = dots$ylab, main = dots$main, 
+            xlim = dots$xlim, ylim = dots$ylim, lty = dots$lty, col = dots$col, lwd = dots$lwd,
+            cex.axis = dots$cex.axis, cex.lab = dots$cex.lab, cex.main = dots$cex.main)
+    abline(h = 0, lty = 1, col = "gray50")
+    if (label) text(x = min(loglambda) - label, y = se1[1, active], 
+                    labels = colnames(coef1)[active], cex = dots$cex.lab, xpd = TRUE, pos = 4)
+    if(gof != "none") abline(v = loglambda[id.best[gof]], col = dots$gof_col, lty = dots$gof_lty, lwd = dots$gof_lwd)
+    if(legend & gof != "none") legend('topright', legend = paste0("min.", gof), lty = dots$gof_lty, col = dots$gof_col, 
+                                      lwd = dots$gof_lwd, bty = "n", cex = dots$cex.lab)
   }
   if (yvar == "weight") {
     weight1 <- object$Weight
     if(intercept) weight1 <- weight1[, -1]
-    matplot(log(lambda), weight1, type = "l", xlab = "log Lambda", ylab = "Mixture weight", xlim = range(log(lambda)) + c(-label, 0), ...)
-    abline(h = 0, lty = 1, col = 'gray')
-    if (label) text(x = min(log(lambda)) - label, y = weight1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
-    abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
-    abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
-    legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+    
+    if(is.null(dots$xlab)) dots$xlab <- "log Lambda"
+    if(is.null(dots$ylab)) dots$ylab <- "Mixture weight"
+    if(is.null(dots$xlim)) dots$xlim <- range(loglambda) + c(-label, legend)
+    if(is.null(dots$ylim)) dots$ylim <- range(weight1)
+    
+    matplot(loglambda, weight1, type = "l", xlab = dots$xlab, ylab = dots$ylab, main = dots$main, 
+            xlim = dots$xlim, ylim = dots$ylim, lty = dots$lty, col = dots$col, lwd = dots$lwd,
+            cex.axis = dots$cex.axis, cex.lab = dots$cex.lab, cex.main = dots$cex.main)
+    abline(h = 0, lty = 1, col = "gray50")
+    if (label) text(x = min(loglambda) - label, y = weight1[1, active], 
+                    labels = colnames(coef1)[active], cex = dots$cex.lab, xpd = TRUE, pos = 4)
+    if(gof != "none") abline(v = loglambda[id.best[gof]], col = dots$gof_col, lty = dots$gof_lty, lwd = dots$gof_lwd)
+    if(legend & gof != "none") legend('topright', legend = paste0("min.", gof), lty = dots$gof_lty, col = dots$gof_col, 
+                                      lwd = dots$gof_lwd, bty = "n", cex = dots$cex.lab)
   }
   if (yvar == "gradient") {
     fn0 <- function(x, y, b, s = 1, c = .5, lambda, alpha, unpenalized, family, offset, weights) {
@@ -237,30 +254,168 @@ plot.islasso.path <- function (x, yvar = c("coefficients", "se", "gradient", "we
       return(- grad + lambda * r)
     }
     grad <- t(sapply(seq_len(nlambda), function(i) {
-      fn0(x = object$Input$x, y = object$Input$y, b = object$Coef[i, ], 
+      fn0(x = model.matrix(object), y = object$y, b = object$Coef[i, ], 
           s = object$SE[i, ], c = object$Weight[i, ], 
-          lambda = lambda[i], alpha = object$Input$alpha, 
-          unpenalized = object$Input$unpenalized, family = object$Input$family, 
-          offset = object$Input$offset, weights = object$Input$weights)
+          lambda = lambda[i], alpha = object$alpha, 
+          unpenalized = object$Input$unpenalized, family = object$family, 
+          offset = object$offset, weights = object$prior.weights)
     }))
     if(intercept) grad <- grad[, -1]
-    matplot(lambda, grad, type = "l", xlab = "Lambda", ylab = "Gradient", xlim = range(lambda) + c(0, label), ...)
-    abline(h = 0, lty = 1, col = 'gray')
-    if (label) text(x = max(lambda), y = grad[nlambda, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
-    # abline(v = lambda[id.best["AIC"]], col = 2, lty = 2, lwd = 2)
-    # abline(v = lambda[id.best["AICc"]], col = 3, lty = 3, lwd = 2)
-    # abline(v = lambda[id.best["BIC"]], col = 4, lty = 4, lwd = 2)
-    # abline(v = lambda[id.best["GCV"]], col = 5, lty = 5, lwd = 2)
-    # legend('topleft', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.GCV'), lty = 2:5, col = 2:5, lwd = 1)
+    
+    if(is.null(dots$xlab)) dots$xlab <- "Lambda"
+    if(is.null(dots$ylab)) dots$ylab <- "Gradient"
+    if(is.null(dots$xlim)) dots$xlim <- range(lambda) + c(-legend, label)
+    if(is.null(dots$ylim)) dots$ylim <- range(grad)
+    
+    matplot(lambda, grad, type = "l", xlab = dots$xlab, ylab = dots$ylab, main = dots$main, 
+            xlim = dots$xlim, ylim = dots$ylim, lty = dots$lty, col = dots$col, lwd = dots$lwd,
+            cex.axis = dots$cex.axis, cex.lab = dots$cex.lab, cex.main = dots$cex.main)
+    abline(h = 0, lty = 1, col = "gray50")
+    if (label) text(x = max(lambda) + label, y = grad[nlambda, active], 
+                    labels = colnames(coef1)[active], cex = dots$cex.lab, xpd = TRUE, pos = 4)
+    if(gof != "none") abline(v = lambda[id.best[gof]], col = dots$gof_col, lty = dots$gof_lty, lwd = dots$gof_lwd)
+    if(legend & gof != "none") legend('topleft', legend = paste0("min.", gof), lty = dots$gof_lty, col = dots$gof_col, 
+                                      lwd = dots$gof_lwd, bty = "n", cex = dots$cex.lab)
+  }
+  if (yvar == "gof") {
+    if(is.null(dots$xlab)) dots$xlab <- "log Lambda"
+    if(is.null(dots$ylab)) dots$ylab <- gof
+    
+    plot(loglambda, object$GoF[, gof, drop = FALSE], type = "l", ylab = dots$ylab, 
+         xlab = dots$xlab, col = "gray50", lwd = dots$lwd, lty = 1L,
+         cex.axis = dots$cex.axis, cex.lab = dots$cex.lab, cex.main = dots$cex.main)
+    abline(v = loglambda[id.best[gof]], col = dots$gof_col, lty = dots$gof_lty, lwd = dots$gof_lwd)
   }
   
   invisible()
 }
 
-predict.islasso.path <- function(object, newdata, type = c("link", "response", "coefficients", "class"), lambda, ...){
+# plot.islasso.path <- function (x, yvar = c("coefficients", "se", "gradient", "weight", "AIC", "BIC", "AICc", "eBIC", "GCV", "GIC"), 
+#                                label = FALSE, cex.lab = 1, ...) {
+#   object <- x
+#   label <- abs(label)
+#   yvar <- match.arg(yvar)
+#   id.best <- apply(object$GoF, 2, which.min)
+#   lambda <- object$Info[, "lambda"]
+#   nlambda <- length(lambda)
+#   if(nlambda == 1) stop("no path in islasso.path fit!")
+#   if (yvar == "AIC") {
+#     # AIC
+#     plot(log(lambda), object$GoF[, "AIC", drop = FALSE], type = 'l', ylab = 'AIC', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   if (yvar == "BIC") {
+#     # BIC
+#     plot(log(lambda), object$GoF[, "BIC", drop = FALSE], type = 'l', ylab = 'BIC', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["BIC"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   if (yvar == "AICc") {
+#     # AICc
+#     plot(log(lambda), object$GoF[, "AICc", drop = FALSE], type = 'l', ylab = 'AICc', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["AICc"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   if (yvar == "eBIC") {
+#     # BIC
+#     plot(log(lambda), object$GoF[, "eBIC", drop = FALSE], type = 'l', ylab = 'eBIC', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["eBIC"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   if (yvar == "GCV") {
+#     # GCV
+#     plot(log(lambda), object$GoF[, "GCV", drop = FALSE], type = 'l', ylab = 'GCV', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["GCV"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   if (yvar == "GIC") {
+#     # GCV
+#     plot(log(lambda), object$GoF[, "GIC", drop = FALSE], type = 'l', ylab = 'GIC', xlab = 'log Lambda', col = 'gray', ...)
+#     abline(v = log(lambda[id.best["GIC"]]), col = 2, lty = 2, lwd = 2)
+#   }
+#   intercept <- object$Input$intercept
+#   coef1 <- object$Coef
+#   if(intercept) coef1 <- coef1[, -1]
+#   nlambda <- length(lambda)
+#   if (yvar == "coefficients") {
+#     matplot(log(lambda), coef1, type = "l", xlab = "log Lambda", ylab = "Coefficients", xlim = range(log(lambda)) + c(-label, 0), ...)
+#     abline(h = 0, lty = 1, col = 'gray')
+#     if (label) text(x = min(log(lambda)) - label, y = coef1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
+#     abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
+#     legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+#   }
+#   if (yvar == "se") {
+#     se1 <- object$SE
+#     if(intercept) se1 <- se1[, -1]
+#     matplot(log(lambda), se1, type = "l", xlab = "log Lambda", ylab = "Std.Errs", xlim = range(log(lambda)) + c(-label,0 ), ...)
+#     abline(h = 0, lty = 1, col = 'gray')
+#     if (label) text(x = min(log(lambda)) - label, y = se1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
+#     abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
+#     legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+#   }
+#   if (yvar == "weight") {
+#     weight1 <- object$Weight
+#     if(intercept) weight1 <- weight1[, -1]
+#     matplot(log(lambda), weight1, type = "l", xlab = "log Lambda", ylab = "Mixture weight", xlim = range(log(lambda)) + c(-label, 0), ...)
+#     abline(h = 0, lty = 1, col = 'gray')
+#     if (label) text(x = min(log(lambda)) - label, y = weight1[1, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
+#     abline(v = log(lambda[id.best["AIC"]]), col = 2, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["AICc"]]), col = 3, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["BIC"]]), col = 4, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["eBIC"]]), col = 5, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GCV"]]), col = 6, lty = 3, lwd = 2)
+#     abline(v = log(lambda[id.best["GIC"]]), col = 7, lty = 3, lwd = 2)
+#     legend('topright', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.eBIC', 'min.GCV', 'min.GIC'), lty = 3, col = 2:7, lwd = 1.5, bty = "n")
+#   }
+#   if (yvar == "gradient") {
+#     fn0 <- function(x, y, b, s = 1, c = .5, lambda, alpha, unpenalized, family, offset, weights) {
+#       eta <- x %*% b + offset
+#       mu <- family$linkinv(eta)
+#       v <- family$variance(mu)
+#       m.e <- family$mu.eta(eta)
+#       r <- y - mu
+#       rv <- r / v * m.e * weights
+#       grad <- drop(t(rv) %*% x)
+#       
+#       bsc <- (b / s)
+#       # grad <- crossprod(x, y - drop(x %*% b))
+#       r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) + (1 - alpha) * b
+#       if(any(unpenalized)) r[unpenalized] <- 0
+#       return(- grad + lambda * r)
+#     }
+#     grad <- t(sapply(seq_len(nlambda), function(i) {
+#       fn0(x = object$Input$x, y = object$Input$y, b = object$Coef[i, ], 
+#           s = object$SE[i, ], c = object$Weight[i, ], 
+#           lambda = lambda[i], alpha = object$Input$alpha, 
+#           unpenalized = object$Input$unpenalized, family = object$Input$family, 
+#           offset = object$Input$offset, weights = object$Input$weights)
+#     }))
+#     if(intercept) grad <- grad[, -1]
+#     matplot(lambda, grad, type = "l", xlab = "Lambda", ylab = "Gradient", xlim = range(lambda) + c(0, label), ...)
+#     abline(h = 0, lty = 1, col = 'gray')
+#     if (label) text(x = max(lambda), y = grad[nlambda, ], labels = colnames(coef1), cex = cex.lab, xpd = TRUE, pos = 4)
+#     # abline(v = lambda[id.best["AIC"]], col = 2, lty = 2, lwd = 2)
+#     # abline(v = lambda[id.best["AICc"]], col = 3, lty = 3, lwd = 2)
+#     # abline(v = lambda[id.best["BIC"]], col = 4, lty = 4, lwd = 2)
+#     # abline(v = lambda[id.best["GCV"]], col = 5, lty = 5, lwd = 2)
+#     # legend('topleft', legend = c('min.AIC', 'min.AICc', 'min.BIC', 'min.GCV'), lty = 2:5, col = 2:5, lwd = 1)
+#   }
+#   
+#   invisible()
+# }
+
+predict.islasso.path <- function(object, newdata, 
+                                 type = c("link", "response", "coefficients", "class"), lambda, ...){
   type <- match.arg(type)
-  family <- object$Input$family
-  if(type == "class" & family$family != "binomial") stop(gettextf("Type 'class' is available only for the %s family", sQuote(family$family)), domain=NA)
+  family <- object$family
+  if(type == "class" & family$family != "binomial") 
+    stop(gettextf("Type 'class' is available only for the %s family", sQuote(binomial()$family)), domain=NA)
   
   tt <- terms(object)
   if (missing(newdata) || is.null(newdata)) {
@@ -303,7 +458,7 @@ predict.islasso.path <- function(object, newdata, type = c("link", "response", "
   out <- switch(type,
                 "link" = { predictor },
                 "response" = { family$linkinv(predictor) },
-                "coefficients" = { beta },
+                "coefficients" = { t(beta) },
                 "class" = {
                   mu <- family$linkinv(predictor)
                   1*I(mu >= .5)} )
@@ -311,16 +466,13 @@ predict.islasso.path <- function(object, newdata, type = c("link", "response", "
   return(out)
 }
 
-model.matrix.islasso.path <- function (object, ...) {
-  model.matrix(object$terms, object$model, object$contrasts, ...)
-}
-
 coef.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
   if(nlambda == 1){
     coef <- object$Coef[1,]
-  }else{
+  }
+  else{
     if(missing(lambda)) return(object$Coef)
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]
@@ -337,7 +489,8 @@ fitted.islasso.path <- function(object, lambda, ...){
   nlambda <- length(lambda.seq)
   if(nlambda == 1){
     fit <- object$Fitted.values[1,]
-  }else{
+  }
+  else{
     if(missing(lambda)) return(object$Fitted.values)
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]
@@ -347,13 +500,14 @@ fitted.islasso.path <- function(object, lambda, ...){
   return(fit)
 }
 
-residuals.islasso.path <- function(object, type=c("working", "response", "deviance", "pearson"), lambda, ...){
+residuals.islasso.path <- function(object, type = c("working", "response", "deviance", "pearson"), lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
   if(nlambda == 1){
     res <- object$Residuals[1,]
     mu <- object$Fitted.values[1,]
-  }else{
+  }
+  else{
     if(missing(lambda)) return(object$Residuals)
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]
@@ -362,9 +516,9 @@ residuals.islasso.path <- function(object, type=c("working", "response", "devian
     mu <- interpolate(object$Fitted.values[id1,], object$Fitted.values[id2,], lambda.seq[id1], lambda.seq[id2], lambda)
   }
   type <- match.arg(type)
-  y <- object$Input$y
-  weights <- object$Input$weights
-  family <- object$Input$family
+  y <- object$y
+  weights <- object$priorweights
+  family <- object$family
   
   switch(type,
          "working" = return(res),
@@ -377,13 +531,14 @@ deviance.islasso.path <- function(object, lambda, ...){
   lambda.seq <- object$Info[,"lambda"]
   nlambda <- length(lambda.seq)
   if(nlambda == 1){
-    dev <- object$Info[1,"deviance"]
-  }else{
+    dev <- object$Info[1, "deviance"][[1]]
+  }
+  else{
     if(missing(lambda)) return(object$Info[, "deviance"])
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]
     id2 <- which(lambda < lambda.seq)[1]
-    dev <- interpolate(object$Info[id1, "deviance"], object$Info[id2, "deviance"], lambda.seq[id1], lambda.seq[id2], lambda)
+    dev <- interpolate(object$Info[id1, "deviance"], object$Info[id2, "deviance"], lambda.seq[id1], lambda.seq[id2], lambda)[[1]]
   }
   return(dev)
 }
@@ -395,7 +550,8 @@ logLik.islasso.path <- function(object, lambda, ...){
     ll <- object$Info[1, "logLik"]
     df <- object$Info[1, "df"]
     phi <- object$Info[1, "phi"]
-  }else{
+  }
+  else{
     if(missing(lambda)) return(object$Info[, "logLik"])
     if(lambda < min(lambda.seq) | lambda > max(lambda.seq)) stop("value of lambda out of bound")
     id1 <- rev(which(lambda >= lambda.seq))[1]

@@ -1,13 +1,21 @@
 \name{islasso-internal}
 \title{Internal Functions}
 
-\alias{format.perc}
+\alias{fmt.perc}
 \alias{qqNorm}
 \alias{ginv2}
 \alias{printCoefmat2}
+
+\alias{grad.islasso}
+\alias{hess.islasso}
+\alias{is.influence}
+\alias{islasso.diag}
+\alias{islasso.diag.plots}
+\alias{predislasso}
+
 \description{Internal islasso functions.}
 \usage{
-format.perc(probs, digits)
+fmt.perc(probs, digits)
 qqNorm(x, probs=seq(.005, .995, l=200), centre=FALSE, scale=FALSE, 
   leg=TRUE, mean=0, sd=1, add=FALSE, p.col=1, dF=FALSE, ylab, ...)
 ginv2(X, tol = sqrt(.Machine$double.eps))
@@ -35,9 +43,21 @@ islasso.path.fitter2(b, se, c, fix.c, l, alpha, x, y, weights, sigma2,
   cov.unscaled, n, intercept, tol, unpenalized, offset, family, maxIter)
 interpolate(y1, y2, x1, x2, x.new)
 
+makeHyp(cnames, hypothesis, rhs = NULL) 
+printHyp(L, b, nms)
+
 cislasso(object, a, ci)
 ci.fitted.islasso(object, newx, ci = NULL, type.ci = "wald", 
   conf.level=.95, only.ci = FALSE)
+  
+grad.islasso(object, ...)
+hess.islasso(object, ...)
+is.influence(model, do.coef = TRUE)
+islasso.diag(glmfit)
+islasso.diag.plots(glmfit, glmdiag = islasso.diag(glmfit), 
+  subset = NULL, iden = FALSE, labels = NULL, ret = FALSE)
+predislasso(object, newdata, type = c("response", "terms"), 
+  terms = NULL, na.action = na.pass, ...)
 }
 \author{Gianluca Sottile (\email{gianluca.sottile@unipa.it})}
 \details{These functions are not intended for users.}

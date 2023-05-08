@@ -40,20 +40,20 @@ F77_SUB(hessian)(double *theta, double *se, double *lambda, double *xtx,
                   double *pi, int *p, double *hess, double *alpha);
 
 void
-  F77_SUB(islasso3)(double *X, double *y, int *n, int *p, double *theta, double *se,
-          double *cov, double *lambda, double *alpha, double *pi, int *estpi,
-          double *h, int *itmax, double *tol, double *sigma2, int *trace,
-          int *adaptive, double *offset, int *conv, int *stand, int *intercept,
-          double *eta, double *mu, double *res, double *dev, double *weights,
-          double *hi, double *edf, double *grad2);
+F77_SUB(islasso)(double *X, double *y, int *n, int *p, double *theta, double *se,
+        double *cov, double *lambda, double *alpha, double *pi, int *estpi,
+        double *h, int *itmax, int *itmaxse, double *tol, double *sigma2, int *trace,
+        int *adaptive, double *offset, int *conv, int *stand, int *intercept,
+        double *eta, double *mu, double *res, double *dev, double *weights,
+        double *hi, double *edf, double *grad2);
 
 void
-  F77_SUB(islasso_glm2)(double *X, double *y, int *n, int *p, double *theta, double *se,
-          double *cov, double *lambda, double *alpha, double *pi, int *estpi,
-          double *h, int *itmax, double *tol, double *sigma2, int *trace,
-          int *adaptive, double *offset, int *conv, int *stand, int *intercept,
-          double *eta, double *mu, double *dev, double *weights, double *hi,
-          double *edf, int *fam, int *link, double *grad2);
+F77_SUB(islasso_glm)(double *X, double *y, int *n, int *p, double *theta, double *se,
+        double *cov, double *lambda, double *alpha, double *pi, int *estpi,
+        double *h, int *itmax, int *itmaxse, double *tol, double *sigma2, int *trace,
+        int *adaptive, double *offset, int *conv, int *stand, int *intercept,
+        double *eta, double *mu, double *dev, double *weights, double *hi,
+        double *edf, int *fam, int *link, double *grad2);
 
 void
 F77_SUB(family)(int *fam, int *link, int *func, double *x, int *n, double *y);
@@ -82,3 +82,16 @@ F77_SUB(linear_predictor)(double *x, double *beta, double *eta, double *offset, 
 void
 F77_SUB(setdiff)(int *p, int *iprofile, int *ind_noprofile);
 
+void
+  F77_SUB(islasso_red)(double *X, double *y, int *n, int *p, double *theta, double *se,
+          double *lambda, double *alpha, double *pi, int *itmax, double *tol, 
+          double *offset, int *conv, double *weights);
+
+void
+  F77_SUB(islasso_glm_red)(double *X, double *y, int *n, int *p, double *theta, double *se,
+          double *lambda, double *alpha, double *pi, int *itmax, double *tol, 
+          double *offset, int *conv, double *weights, int *fam, int *link);
+
+void F77_SUB(lminfl)(double *x, int *ldx, int *n, int *k,
+              double *qraux, double *resid, double *hat,
+              double *coef, double *sigma, double *tol);

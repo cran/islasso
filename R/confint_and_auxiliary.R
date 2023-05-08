@@ -1,17 +1,21 @@
-confint.islasso <- function (object, parm, level = 0.95, trace = FALSE, ...) {
+confint.islasso <- function (object, parm, level = 0.95, type.ci = "wald", trace = TRUE, ...) {
+  type.ci <- match.arg(type.ci)
+  if(type.ci != "wald") stop("Only Wald-type confidence intervals are implemented yet!")
   pnames <- names(B0 <- coef(object))
   if (missing(parm)) 
     parm <- seq_along(pnames)
   else if (is.character(parm)) 
     parm <- match(parm, pnames, nomatch = 0L)
   
-  alpha <- (1 - level)/2
-  a <- c(alpha, 1 - alpha)
-  fac <- qnorm(a)
-  pct <- paste(round(100 * a, 1), "%")
-  ci <- array(NA, dim = c(length(parm), 2L), dimnames = list(pnames[parm], pct))
-  ses <- object$se
-  ci[] <- B0[parm] + ses[parm] %o% fac
+  if(type.ci == "wald"){
+    alpha <- (1 - level)/2
+    a <- c(alpha, 1 - alpha)
+    fac <- qnorm(a)
+    pct <- paste(round(100 * a, 1), "%")
+    ci <- array(NA, dim = c(length(parm), 2L), dimnames = list(pnames[parm], pct))
+    ses <- object$se
+    ci[] <- B0[parm] + ses[parm] %o% fac
+  }
   
   attr(ci, "coefficients") <- B0[parm]
   attr(ci, "level") <- level
@@ -50,53 +54,144 @@ plot.confint.islasso <- function(x, parm, ...){
   text(1:p, L$text.y, labels=nms[parm], srt=L$srt, pos=1, xpd=TRUE, cex=L$text.cex)
 }
 
-anova.islasso <- function(object, A, b, ci, ...){
+makeHyp <- function (cnames, hypothesis, rhs = NULL) {
+  parseTerms <- function(terms) {
+    component <- gsub("^[-\\ 0-9\\.]+", "", terms)
+    component <- gsub(" ", "", component, fixed = TRUE)
+    component
+  }
+  stripchars <- function(x) {
+    x <- gsub("\\n", " ", x)
+    x <- gsub("\\t", " ", x)
+    x <- gsub(" ", "", x, fixed = TRUE)
+    x <- gsub("*", "", x, fixed = TRUE)
+    x <- gsub("-", "+-", x, fixed = TRUE)
+    x <- strsplit(x, "+", fixed = TRUE)[[1]]
+    x <- x[x != ""]
+    x
+  }
+  char2num <- function(x) {
+    x[x == ""] <- "1"
+    x[x == "-"] <- "-1"
+    as.numeric(x)
+  }
+  constants <- function(x, y) {
+    with.coef <- unique(unlist(sapply(y, function(z) which(z == parseTerms(x)))))
+    if (length(with.coef) > 0) x <- x[-with.coef]
+    x <- if (is.null(x)) 0 else sum(as.numeric(x))
+    if (any(is.na(x))) stop("The hypothesis \"", hypothesis, "\" is not well formed: contains bad coefficient/variable names.")
+    x
+  }
+  coefvector <- function(x, y) {
+    rv <- gsub(" ", "", x, fixed = TRUE) == parseTerms(y)
+    if (!any(rv)) return(0)
+    if (sum(rv) > 1) stop("The hypothesis \"", hypothesis, "\" is not well formed.")
+    rv <- sum(char2num(unlist(strsplit(y[rv], x, fixed = TRUE))))
+    if (is.na(rv)) stop("The hypothesis \"", hypothesis, "\" is not well formed: contains non-numeric coefficients.")
+    rv
+  }
+  if (!is.null(rhs)) rhs <- rep(rhs, length.out = length(hypothesis))
+  if (length(hypothesis) > 1) 
+    return(rbind(Recall(cnames, hypothesis[1], rhs[1]), Recall(cnames, hypothesis[-1], rhs[-1])))
+  cnames_symb <- sapply(c("@", "#", "~"), function(x) length(grep(x, cnames)) < 1)
+  if (any(cnames_symb)) {
+    cnames_symb <- head(c("@", "#", "~")[cnames_symb], 1)
+    cnames_symb <- paste(cnames_symb, seq_along(cnames), cnames_symb, sep = "")
+    hypothesis_symb <- hypothesis
+    for (i in order(nchar(cnames), decreasing = TRUE)) 
+      hypothesis_symb <- gsub(cnames[i], cnames_symb[i], hypothesis_symb, fixed = TRUE)
+  }
+  else {
+    stop("The hypothesis \"", hypothesis, "\" is not well formed: contains non-standard coefficient names.")
+  }
+  lhs <- strsplit(hypothesis_symb, "=", fixed = TRUE)[[1]]
+  if (is.null(rhs)) {
+    if (length(lhs) < 2) 
+      rhs <- "0"
+    else if (length(lhs) == 2) {
+      rhs <- lhs[2]
+      lhs <- lhs[1]
+    }
+    else stop("The hypothesis \"", hypothesis, "\" is not well formed: contains more than one = sign.")
+  }
+  else {
+    if (length(lhs) < 2) 
+      as.character(rhs)
+    else stop("The hypothesis \"", hypothesis, "\" is not well formed: contains a = sign although rhs was specified.")
+  }
+  lhs <- stripchars(lhs)
+  rhs <- stripchars(rhs)
+  rval <- sapply(cnames_symb, coefvector, y = lhs) - sapply(cnames_symb, coefvector, y = rhs)
+  rval <- c(rval, constants(rhs, cnames_symb) - constants(lhs, cnames_symb))
+  names(rval) <- c(cnames, "*rhs*")
+  rval
+}
+
+printHyp <- function (L, b, nms) {
+  nomi <- apply(L, 1, function(l){
+    id <- which(l != 0)
+    temp <- paste(l[id], nms[id], sep = "*", collapse = " + ")
+    if(nchar(temp) > min(getOption("width"), 50)) temp <- paste(strtrim(temp, min(getOption("width"), 50)), "...")
+    temp
+  })
+  paste0(nomi, " = ", b)
+}
+
+anova.islasso <- function (object, A, b = NULL, ci, ...) {
+  # beta <- if(missing(ci)) coef(object) else attr(ci, "unbiased")
   beta <- coef(object)
-  nms <- names(beta)
-  p <- length(beta)
-  if(missing(A) & missing(b)) A <- diag(p)
-  if(missing(A) & !missing(b)) stop("Constraint matrix A is missing")
-  if(is.vector(A)) A <- t(A)
-  k <- nrow(A)
-  mpc <- if(k > 1) TRUE else FALSE
-  if(!missing(A) & missing(b)) b <- rep(0, k)
-  if(length(b) == 1 & k > 1) b <- rep(b, k)
   V <- vcov(object)
-  Identity <- diag(k)
-  AI <- cbind(A, Identity)
-  betab <- c(beta, -b)
-  beta_new <- AI %*% betab
-  V_new <- tcrossprod((A %*% V), A)
-  nomi <- character(length = k)
+  nms <- names(beta)
   
-  ic <- if(!missing(ci)) matrix(NA, k, 2, dimnames = list(NULL, colnames(ci))) else NULL
-  
-  if(mpc){
-    statistic2 <- drop(crossprod(beta_new, solve(V_new, beta_new)))
-    pval2 <- 1 - pchisq(statistic2, df = k)
-  }else{
-    statistic2 <- 0
-    pval2 <- 0
+  if (any(aliased <- is.na(beta))) stop("there are aliased coefficients in the model")
+  beta <- beta[!aliased]
+  if (is.null(beta)) 
+    stop(paste("there is no coef() method for models of class", paste(class(object), collapse = ", ")))
+  if (is.character(A)) {
+    L <- makeHyp(nms, A, b)
+    if (is.null(dim(L))) L <- t(L)
+    b <- L[, NCOL(L)]
+    L <- L[, -NCOL(L), drop = FALSE]
+    rownames(L) <- A
   }
-  pval <- statistic <- double(length = k)
-  for(i in seq_len(k)){
-    id <- which(A[i, ] != 0)
-    nomi[i] <- paste(A[i, id], nms[id], sep="*", collapse = " + ")
-    if(nchar(nomi[i]) > 60) nomi[i] <- paste(strtrim(nomi[i], 60), "...")
-    statistic[i] <- (beta_new[i]^2) / V_new[1]
-    pval[i] <- 1 - pchisq(statistic[i], df = 1)
-    if(!missing(ci)) ic[i, ] <- cislasso(object, a = A[i, ], ci = ci)
+  else {
+    L <- if (is.null(dim(A))) t(A) else A
+    if (is.null(b)) b <- rep(0, nrow(L))
   }
-  if(mpc) nomi <- c(nomi, "Overall")
+  q <- NROW(L)
   
-  object$anova <- list(A=A, b=b, coefficients=beta_new, vcov=V_new, k=k, nms=nomi, mpc=mpc, 
-                       tstat=sqrt(statistic), pvalues=pval, tstat2=statistic2, pvalues2=pval2, ci=ic)
+  value.hyp <- L %*% beta - b
+  vcov.hyp <- L %*% V %*% t(L)
+  
+  rval <- matrix(NA, nrow = q + 1L, ncol = 4L)
+  colnames(rval) <- c("Estimate", "Std. Error", "Chisq", "Pr(>Chisq)")
+  rownames(rval) <- c(printHyp(L, b, nms), "Overall")
+  rval[1:q, 1L] <- value.hyp
+  rval[1:q, 2L] <- sqrt(diag(vcov.hyp))
+  rval[1:q, 3L] <- value.hyp^2 / diag(vcov.hyp)
+  rval[1:q, 4L] <- pchisq(rval[1:q, 3L], 1L, lower.tail = FALSE)
+  
+  if (q > 1) {
+    statistic2 <- as.vector(t(value.hyp) %*% solve(vcov.hyp) %*% value.hyp)
+    pval2 <- pchisq(statistic2, q, lower.tail = FALSE)
+    rval[q + 1L, 3:4] <- c(statistic2, pval2)
+  } 
+  else rval <- rval[-c(q + 1L), , drop = FALSE]
+  
+  ic <- NULL
+  if(!missing(ci)) {
+    ic <- t(apply(L, 1, function(a) cislasso(object, a = a, ci = ci)))
+    colnames(ic) <- colnames(ci)
+    rownames(ic) <- rownames(rval)[1:q]
+  }
+  
+  object$anova <- list(result = as.data.frame(rval), ci = ic)
   class(object) <- c("anova.islasso", class(object))
   return(object)
 }
 
 print.anova.islasso <- function(x, digits = max(3, getOption("digits") - 3), ...){
-  cat("\n\t", "Simultaneous Tests for General Linear Hypotheses\n\n")
+  cat("\n\t", "Simultaneous Tests for General Linear Combination\n\n")
   call <- x$call
   if (!is.null(call)) {
     cat("Fit: ")
@@ -105,22 +200,12 @@ print.anova.islasso <- function(x, digits = max(3, getOption("digits") - 3), ...
   }
   pq <- x$anova
   
-  mtests <- cbind(pq$coefficients, sqrt(diag(pq$vcov)), pq$tstat, pq$pvalues)
-  sig <- .Machine$double.eps
-  if(pq$mpc) mtests <- rbind(mtests, c(0, 0, pq$tstat2, pq$pvalues2))
-  colnames(mtests) <- c("Estimate", "Std. Error", "chi2 value", "Pr(>|chi2|)")
-  rownames(mtests) <- paste(pq$nms, "=", format(pq$b, digits=3, trim=TRUE))
-  if(pq$mpc) rownames(mtests)[nrow(mtests)] <- pq$nms[nrow(mtests)]
-  cat("Linear Hypotheses:\n")
-  if(pq$mpc){
-    printCoefmat2(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  }else{
-    printCoefmat(mtests, digits = digits, has.Pvalue = TRUE, P.values = TRUE, eps.Pvalue = sig)
-  }
+  cat("Linear Hypothesis:\n")
+  printCoefmat(pq$result, digits = digits, has.Pvalue = TRUE, P.values = TRUE, 
+               eps.Pvalue = .Machine$double.eps, na.print = "")
   cat("\n")
   if(!is.null(pq$ci)){
-    cat("Confidence Interval Estimation for Linear Hypotheses:\n")
-    rownames(pq$ci) <- pq$nms[1:pq$k]
+    cat("Confidence Interval Estimation for Linear Hypothesis:\n")
     print.default(format(round(pq$ci, 6), digits = digits), print.gap = 2, quote = FALSE)
     cat("\n")
   }
@@ -147,13 +232,14 @@ cislasso <- function(object, a, ci){
   dmax <- DMAX[col(R) > row(R)]
   Cu <- 2*sum(r*dmax)
   L <- th - sqrt(sum(difmin^2) + Cl)
-  U <- th + sqrt(sum(difmin^2) + Cu)
+  U <- th + sqrt(sum(difmax^2) + Cu)
   r <- c(L, U)
   r
 }
 
 ci.fitted.islasso <- function(object, newx, ci = NULL, type.ci = "wald", conf.level=.95, only.ci = FALSE){
   type.ci <- match.arg(type.ci)
+  if(type.ci != "wald") stop("Only Wald-type confidence intervals are implemented yet!")
   if(missing(newx)) newx <- model.matrix(object)
   if(is.null(ci)) ci <- confint.islasso(object, level = conf.level, type.ci = type.ci, trace = FALSE)
   if(only.ci) return(ci)

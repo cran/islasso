@@ -11,13 +11,13 @@ This package implements an induced smoothed approach for hypothesis testing in l
 \tabular{ll}{
 Package: \tab islasso\cr
 Type: \tab Package\cr
-Version: \tab 1.4.3\cr
-Date: \tab 2022-03-01\cr
+Version: \tab 1.5.0\cr
+Date: \tab 2023-05-02\cr
 License: \tab GPL-2\cr
 }
-\code{\link{islasso}} is used to fit generalized linear models with a L1-penalty on (some) regression coefficients. Along with point estimates, the main advantage is to return the full covariance matrix of estimate. The resulting standard errors can be used to make inference in the lasso framework. The main function is \code{\link{islasso}} and the correspoinding fitter function \code{\link{islasso.fit}}, and many auxiliary functions are implemented to summarize and visualize results: \code{\link{summary.islasso}},  \code{\link{predict.islasso}},  \code{\link{coef.islasso}}, \code{\link{fitted.islasso}},  \code{\link{logLik.islasso}}, \code{\link{AIC.islasso}}, \code{\link{deviance.islasso}},  \code{\link{residuals.islasso}}.
+\code{\link{islasso}} is used to fit generalized linear models with a L1-penalty on (some) regression coefficients. Along with point estimates, the main advantage is to return the full covariance matrix of estimate. The resulting standard errors can be used to make inference in the lasso framework. The main function is \code{\link{islasso}} and the correspoinding fitter function \code{\link{islasso.fit}}, and many auxiliary functions are implemented to summarize and visualize results: \code{\link{summary.islasso}},  \code{\link{predict.islasso}},  \code{\link{logLik.islasso}}, \code{\link{deviance.islasso}},  \code{\link{residuals.islasso}}.
 
-\code{\link{islasso.path}} is used to fit Fit a generalized linear model via the Induced Smoothed Lasso. The regularization path is computed for the lasso or elasticnet penalty at a grid of values for the regularization parameter lambda. Along with coefficients profile, the main advantage is to return also the standard errors profile. The resulting standard errors can be used to make inference in the lasso framework. The main function is \code{\link{islasso.path}} and the correspoinding fitter function \code{\link{islasso.path.fit}}, and many auxiliary functions are implemented to summarize and visualize results: \code{\link{summary.islasso.path}},  \code{\link{predict.islasso.path}},  \code{\link{coef.islasso.path}}, \code{\link{fitted.islasso.path}},  \code{\link{logLik.islasso.path}}, \code{\link{deviance.islasso.path}},  \code{\link{residuals.islasso.path}}.
+\code{\link{islasso.path}} is used to fit Fit a generalized linear model via the Induced Smoothed Lasso. The regularization path is computed for the lasso or elasticnet penalty at a grid of values for the regularization parameter lambda. Along with coefficients profile, the main advantage is to return also the standard errors profile. The resulting standard errors can be used to make inference in the lasso framework. The main function is \code{\link{islasso.path}} and the correspoinding fitter function \code{\link{islasso.path.fit}}, and many auxiliary functions are implemented to summarize and visualize results: \code{\link{summary.islasso.path}},  \code{\link{predict.islasso.path}},  \code{\link{logLik.islasso.path}}, \code{\link{deviance.islasso.path}},  \code{\link{residuals.islasso.path}}, \code{\link{coef.islasso.path}}, \code{\link{fitted.islasso.path}}.
 }
 \author{
 Gianluca Sottile based on some preliminary functions by Vito Muggeo.

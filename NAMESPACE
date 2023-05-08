@@ -1,32 +1,39 @@
 useDynLib(islasso, .registration = TRUE, .fixes = "C_")
 
-import(glmnet, stats)
+import(glmnet)
+import(stats)
 importFrom(graphics, abline, legend, lines, par, plot,
-	points, segments, axis, text, matplot)
-importFrom(utils, setTxtProgressBar, txtProgressBar)
+	points, segments, axis, text, matplot, identify)
+importFrom(utils, setTxtProgressBar, txtProgressBar, tail, head)
 importFrom(Matrix, forceSymmetric)
 
 export(is.control, 
 	islasso, islasso.fit, aic.islasso,
-	print.islasso, summary.islasso, plot.islasso, model.matrix.islasso, 
-	predict.islasso,	residuals.islasso, fitted.islasso, 
-	coef.islasso, AIC.islasso, deviance.islasso, vcov.islasso,
+	print.islasso, summary.islasso, plot.islasso, 
+	model.matrix.islasso, 
+	predict.islasso,	residuals.islasso, 
+	deviance.islasso, vcov.islasso, logLik.islasso,
 	anova.islasso, print.anova.islasso, 
-	logLik.islasso, print.logLik.islasso, 
+	model.frame.islasso,
+	extractAIC.islasso, family.islasso, formula.islasso,
+	nobs.islasso, weights.islasso, variable.names.islasso,
+	influence.islasso, cooks.distance.islasso,
+	rstandard.islasso, rstudent.islasso, 
 
 	islasso.path, islasso.path.fit, GoF.islasso.path,
 	print.islasso.path, summary.islasso.path, plot.islasso.path, 
-	model.matrix.islasso.path, predict.islasso.path, 
+	predict.islasso.path, 
 	residuals.islasso.path, fitted.islasso.path, 
 	coef.islasso.path, deviance.islasso.path,
 	logLik.islasso.path, print.logLik.islasso.path, 
 
-	modelX, simulXy,
+	modelX, simulXy, 
+	grad.islasso, hess.islasso, islasso.diag, 
+	islasso.diag.plots, predislasso,
 
 	confint.islasso, print.confint.islasso, plot.confint.islasso)
 
 S3method(print, islasso)
-S3method(print, logLik.islasso)
 S3method(print, islasso.path)
 S3method(print, logLik.islasso.path)
 
@@ -35,7 +42,6 @@ S3method(print, summary.islasso)
 S3method(summary, islasso.path)
 S3method(print, summary.islasso.path)
 
-S3method(coef, islasso)
 S3method(coef, islasso.path)
 
 S3method(vcov, islasso)
@@ -46,10 +52,7 @@ S3method(logLik, islasso.path)
 S3method(residuals, islasso)
 S3method(residuals, islasso.path)
 
-S3method(fitted, islasso)
 S3method(fitted, islasso.path)
-
-S3method(AIC, islasso)
 
 S3method(deviance, islasso)
 S3method(deviance, islasso.path)
@@ -64,12 +67,20 @@ S3method(anova, islasso)
 S3method(print, anova.islasso)
 
 S3method(model.matrix, islasso)
-S3method(model.matrix, islasso.path)
 
 S3method(confint, islasso)
 S3method(print, confint.islasso)
 S3method(plot, confint.islasso)
 
-
-
+S3method(model.frame, islasso)
+S3method(extractAIC, islasso)
+S3method(family, islasso)
+S3method(formula, islasso)
+S3method(nobs, islasso)
+S3method(weights, islasso)
+S3method(variable.names, islasso)
+S3method(influence, islasso)
+S3method(cooks.distance, islasso)
+S3method(rstandard, islasso)
+S3method(rstudent, islasso)
 
