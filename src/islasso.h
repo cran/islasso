@@ -92,6 +92,6 @@ void
           double *lambda, double *alpha, double *pi, int *itmax, double *tol, 
           double *offset, int *conv, double *weights, int *fam, int *link);
 
-void F77_SUB(lminfl)(double *x, int *ldx, int *n, int *k,
+void F77_SUB(lminfl)(double *x, int *ldx, int *n, int *k, int *q,
               double *qraux, double *resid, double *hat,
-              double *coef, double *sigma, double *tol);
+              double *sigma, double *tol);

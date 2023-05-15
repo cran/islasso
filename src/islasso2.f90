@@ -330,8 +330,16 @@ do i = 1, itmax
     call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, tempMat, p)
     call DGEMM('N', 'N', p, p, p, 1.d0, tempMat, p, invH, p, 0.d0, cov1, p)
     cov = cov + h * (cov1 - cov)
+    
     do k = 1, p
-        se(k) = sqrt(cov(k,k))
+      hi(k) = tempMat(k,k)
+    end do
+    edf = sum(hi)
+    redf = n - edf
+    if(sigma2.lt.0) s2 = dev / redf
+
+    do k = 1, p
+        se(k) = sqrt(s2 * cov(k,k))
     end do
     
     ! checking possible convergence criterion
@@ -386,13 +394,14 @@ if(stand.eq.1) then
     call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, tempMat, p)
 end if
 
-do k = 1, p
-    hi(k) = tempMat(k,k)
-end do
-edf = sum(hi)
-redf = n - edf
-if(sigma2.lt.0) sigma2 = dev / redf
-cov = cov / sigma2
+!do k = 1, p
+!    hi(k) = tempMat(k,k)
+!end do
+!edf = sum(hi)
+!redf = n - edf
+!if(sigma2.lt.0) sigma2 = dev / redf
+!cov = cov / sigma2
+sigma2 = s2
 call gradient(theta, se, lambda, xtw, res, pi, n, p, grad2, alpha)
 
 end subroutine islasso

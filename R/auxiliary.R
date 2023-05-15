@@ -258,8 +258,8 @@ is.influence <- function (model, do.coef = TRUE) {
     n <- nrow(qr)
     k <- mqr$rank
     if(length(e) != n) e <- c(e, rep(0, n - length(e)))
-    tmp <- .Fortran(C_lminfl, qr, n, n, k, qraux, e, hat = double(n), 
-                    coefficients = matrix(0.0, n, k), sigma = double(n), tol)
+    tmp <- .Fortran(C_lminfl, qr, n, n, k, as.integer(1), qraux, e, hat = double(n), 
+                    sigma = double(n), tol)
     # tmp <- .Fortran(C_lminfl, qr, n, n, k, as.integer(do.coef), qraux, e, hat = double(n), 
     #                 coefficients = matrix(0.0, n, k), sigma = double(n), tol)
     for (i in seq_len(n)) {

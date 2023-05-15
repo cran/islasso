@@ -279,24 +279,30 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
           weights2 <- rep.int(1, nobs)
       }
       if(intercept) x <- x[,-1]
+      if(setting$stand) {
+        x_mean <- colMeans(x)
+        x_centered <- sweep(x, 2, x_mean, "-")
+        x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
+        x <- sweep(x_centered, 2, x_sd, "/")
+      }
       if(missing(lambda)){
         obj <- suppressWarnings(cv.glmnet(x=x, y=y2, family=tempFamily, nfolds=setting$nfolds,
-                         standardize=setting$stand, intercept=intercept, offset=offset, weights=weights2, alpha=alpha))
+                         standardize=FALSE, intercept=intercept, offset=offset, weights=weights2, alpha=alpha))
         lambda <- obj$lambda.min * nobs
         est <- as.vector(coef(obj, s="lambda.min"))
       }
       else{
         obj <- suppressWarnings(glmnet(x=x, y=y2, family=tempFamily, alpha=alpha, weights=weights2,
-                      standardize=setting$stand, intercept=intercept, offset=offset))
+                      standardize=FALSE, intercept=intercept, offset=offset))
         est <- as.vector(coef(obj, s=lambda / nobs))
       }
-      if(setting$stand) {
-        x_mean <- colMeans(x)
-        x_centered <- sweep(x, 2, x_mean, "-")
-        x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
-        est[1] <- est[1] + sum(x_mean / x_sd * est[1])
-        est[-1] <- x_sd * est[-1]
-      }
+      # if(setting$stand) {
+      #   x_mean <- colMeans(x)
+      #   x_centered <- sweep(x, 2, x_mean, "-")
+      #   x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
+      #   est[1] <- est[1] + sum(x_mean / x_sd * est[-1])
+      #   est[-1] <- x_sd * est[-1]
+      # }
       if(!intercept) est <- est[-1]
     }
   }
@@ -327,16 +333,24 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
 
 .islasso <- function(prep, start, Lambda, fam, link) {
   setting <- prep$setting
-  X <- prep$X
-  storage.mode(X) <- "double"
-  y <- prep$y
-  storage.mode(y) <- "double"
-  intercept <- prep$intercept
-  storage.mode(intercept) <- "integer"
   nobs <- prep$nobs
   storage.mode(nobs) <- "integer"
   nvars <- prep$nvars
   storage.mode(nvars) <- "integer"
+  intercept <- prep$intercept
+  storage.mode(intercept) <- "integer"
+  X <- prep$X
+  if(setting$stand) {
+    x_mean <- colMeans(X)
+    if(intercept) x_mean[1] <- 0
+    x_centered <- sweep(X, 2, x_mean, "-")
+    x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
+    if(intercept) x_sd[1] <- 1
+    X <- sweep(x_centered, 2, x_sd, "/")
+  }
+  storage.mode(X) <- "double"
+  y <- prep$y
+  storage.mode(y) <- "double"
   beta <- start$beta
   if(any(beta == 0)) beta[beta == 0] <- 1E-5
   storage.mode(beta) <- "double"
@@ -345,6 +359,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   covar <- start$covar
   storage.mode(covar) <- "double"
   storage.mode(Lambda) <- "double"
+  if(setting$stand) Lambda <- Lambda / x_sd
   alpha <- prep$alpha
   storage.mode(alpha) <- "double"
   offset <- prep$offset
@@ -373,7 +388,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
       fit <- .Fortran(C_islasso, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda,
                       alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, itmaxse = setting$itmax, tol = setting$tol, 
                       phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
-                      stand = setting$stand, intercept = intercept, eta = eta, mu = mu, res = residuals, dev = double(1), weights = weights, 
+                      stand = 0L, intercept = intercept, eta = eta, mu = mu, res = residuals, dev = double(1), weights = weights, 
                       hi = double(nvars), edf = double(1), grad = double(nvars))
     # }
     # else {
@@ -389,7 +404,7 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
       fit <- .Fortran(C_islasso_glm, X = X, y = y, n = nobs, p = nvars, ntheta = beta, se = se, cov = covar, lambda = Lambda, 
                       alpha = alpha, pi = setting$c, estpi = setting$estpai, h = h, itmax = setting$itmax, itmaxse = setting$itmax, tol = setting$tol, 
                       phi = setting$sigma2, trace = setting$trace, adaptive = setting$adaptive, offset = offset, conv = integer(1), 
-                      stand = setting$stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights, 
+                      stand = 0L, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights, 
                       hi = double(nvars), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(nvars))
     # }
     # else {
@@ -417,49 +432,62 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   linkfun <- family$linkfun
   
   # extract from fit
-  rank <- fit$edf
+  # rank <- fit$edf
   iter <- fit$itmax
   conv <- fit$conv
   
   beta <- fit$ntheta
+  covar <- fit$cov
+  if(setting$stand) {
+    X <- prep$X
+    Lambda <- Lambda * x_sd
+    beta <- beta / x_sd
+    covar <- covar / outer(x_sd, x_sd, "*")
+    if(intercept) {
+      beta[1] <- beta[1] - sum(beta * x_mean)
+      covar[1, ] <- covar[1, ] - x_mean %*% covar
+      covar[, 1] <- covar[1, ]
+      covar[1, 1] <- covar[1, 1] - drop(covar[1, ] %*% x_mean)
+    } 
+  }
+  s2 <- fit$phi
+  se <- sqrt(s2 * diag(covar))
   eta <- drop(X %*% beta + offset)
   mu <- linkinv(eta)
+  varmu <- variance(mu)
+  mu.eta.val <- mu.eta(eta)
+  w <- (weights * mu.eta.val^2) / varmu
+  residuals <- (y - mu) / mu.eta.val
+  
+  XtW <- t(w * X)
+  XtX <- XtW %*% X
+  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, hess = XtX, alpha)$hess
+  invH <- .Fortran(C_inv, nvars, H, invA = H, integer(1))$invA
+  
+  hi <- fit$hi
+  rank <- fit$edf
+  # hi <- diag(invH %*% XtX)
+  # rank <- sum(hi)
+  
   dev <- sum(dev.resids(y, mu, weights))
-  #s2 <- if(prep$tempFamily %in% c("binomial", "poisson")) 1.0 else dev / (nobs - rank)
+  # s2 <- if(prep$tempFamily %in% c("binomial", "poisson")) 1.0 else sum((w * residuals^2)[w > 0]) / (nobs - rank)
+  #dev / (nobs - rank)
   
-  s2 <- fit$phi
-  covar <- s2 * fit$cov
-  #se <- sqrt(diag(covar))
-  se <- fit$se
-  # dev <- fit$dev
-  
-  # aic.model <- aic(y, nobs, mu, weights, dev) + 2 * rank
   aic.model <- if((nobs > nvars) & (prep$tempFamily %in% c("gaussian", "binomial", "poisson", "Gamma")))
     aic(y, prep$n, mu, weights, dev) + 2 * rank
   else
     dev + 2 * rank
   
-  varmu <- variance(mu)
-  mu.eta.val <- mu.eta(eta)
-  w <- (weights * mu.eta.val^2) / varmu
-  residuals <- (y - mu) / mu.eta.val
-  z <- (eta - offset) + residuals
-  
   bsc <- (beta / se)
-  
   P <- alpha * (setting$c * (2 * pnorm(bsc, 0, 1) - 1) + (1 - setting$c) * (2 * pnorm(bsc, 0, 1E-5) - 1)) + 
     (1 - alpha) * beta
   if(any(prep$unpenalized)) P[prep$unpenalized] <- 0
+  gradient <- drop(- crossprod(X, w * residuals) + Lambda * P)
   
-  # tmp <- lm.wfit(rbind(X, sqrt(Lambda) * diag(sqrt(P / beta))), 
-  #                    c(z, rep(0, nvars)), 
-  #                    c(w, rep(0, nvars)))
-  # tmp2 <- .Call(stats:::Cdqrls,
-  #              rbind(X * sqrt(w), sqrt(Lambda) * diag(sqrt(P / beta))),
-  #              c(z * sqrt(w), rep(0, nvars)), setting$tol, check = FALSE)
+  z <- (eta - offset) + residuals
+  
   fit$qr <- .lm.fit(x = rbind(X * sqrt(w), sqrt(Lambda) * diag(sqrt(P / beta))), 
                  y = c(z * sqrt(w), rep(0, nvars)))
-  # fit$qr <- structure(tmp[c("qr", "rank", "qraux", "pivot", "tol")], class = "qr")
   nr <- min(nobs, nvars)
   if (nr < nvars) {
     Rmat <- diag(nvars)
@@ -470,21 +498,6 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   Rmat[row(Rmat) > col(Rmat)] <- 0
   fit$effects <- fit$qr$effects[1:nobs]
   
-  # fn0 <- function(grad, b, s, c, lambda, alpha, unpenalized) {
-  #   bsc <- (b / s)
-  #   # grad <- crossprod(x, y - drop(x %*% b))
-  #   r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, .00001) - 1)) + (1 - alpha) * b
-  #   if(any(unpenalized)) r[unpenalized] <- 0
-  #   return(drop(- grad + lambda * r))
-  # }
-  # gradient <- fn0(grad = crossprod(X, w * residuals), beta, se, setting$c, start$lambda, alpha, prep$unpenalized)
-  gradient <- drop(- crossprod(X, w * residuals) + Lambda * P)
-  
-  XtW <- t(w * X)
-  XtX <- XtW %*% X
-  H <- .Fortran(C_hessian, beta, se, Lambda, XtX, setting$c, nvars, hess = XtX, alpha)$hess
-  invH <- .Fortran(C_inv, nvars, H, invA = H, integer(1))$invA
-  
   # null model
   wtdmu <- if(intercept) sum(weights * y)/sum(weights) else linkinv(offset)
   nulldev <- sum(dev.resids(y, wtdmu, weights))
@@ -493,25 +506,13 @@ islasso.fit <- function(X, y, family=gaussian, lambda, alpha=1, intercept=FALSE,
   nulldf <- n.ok - as.integer(intercept)
   resdf <- n.ok - rank
   
-  # # compute unbias estimate (beta code)
-  # se.unbias <- beta.unbias <- NULL
-  # if(setting$debias){
-  #   invH2 <- ginv2(XtX) #.Fortran(C_inv2, as.integer(nvars), XtX, invA=XtX, integer(0))$invA
-  #   # invH2 <- .Fortran(C_inv3, as.integer(nvars), XtX, invA=XtX, integer(1))$invA
-  #   gradient2 <- XtW %*% residuals
-  #   delta <- invH2 %*% gradient2
-  #   beta.unbias <- drop(beta + delta)
-  #   se.unbias <-  sqrt(diag(s2*(invH2)))
-  #   names(beta.unbias) <- names(se.unbias) <- prep$nms
-  # }
-  
   names(gradient) <- names(se) <- names(beta) <- colnames(XtX) <- 
     rownames(XtX) <- colnames(covar) <- rownames(covar) <- prep$nms
   
   # internal argument
   internal <- list(n = nobs, p = nvars, lambda.seq = fit$lambda, 
-                   XtW = XtW, XtX = XtX, invH = invH, vcov = covar, 
-                   gradient = gradient, hessian = H, hi = fit$hi, 
+                   XtW = XtW, XtX = XtX, invH = invH, vcov = s2 * covar, 
+                   gradient = gradient, hessian = H, hi = hi, 
                    intercept = intercept, unpenalized = prep$unpenalized, 
                    fam = fam, link = link, nms = prep$nms, 
                    estc = setting$estpai, lmbd.interval = start$interval)
