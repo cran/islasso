@@ -1,8 +1,8 @@
 Package: islasso
 Type: Package
 Title: The Induced Smoothed Lasso
-Version: 1.5.1
-Date: 2023-05-12
+Version: 1.5.2
+Date: 2024-01-22
 Authors@R: c(person("Gianluca", "Sottile", role=c("aut", "cre"), email = "gianluca.sottile@unipa.it"),
 	     person("Giovanna", "Cilluffo", role=c("aut", "ctb")),
 	     person("Vito MR", "Muggeo", role=c("aut", "ctb")))
@@ -13,11 +13,11 @@ Description: An implementation of the induced smoothing (IS) idea to lasso regul
 License: GPL (>= 2)
 Encoding: UTF-8
 NeedsCompilation: yes
-Packaged: 2023-05-15 13:29:49 UTC; gianlucasottile
+Packaged: 2024-01-23 09:00:46 UTC; gianlucasottile
 Author: Gianluca Sottile [aut, cre],
   Giovanna Cilluffo [aut, ctb],
   Vito MR Muggeo [aut, ctb]
 Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 LazyLoad: yes
 Repository: CRAN
-Date/Publication: 2023-05-15 23:40:02 UTC
+Date/Publication: 2024-01-23 15:20:05 UTC

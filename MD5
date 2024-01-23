@@ -1,4 +1,4 @@
-9ad46ec07d9f62665abfa11f0d6cac93 *DESCRIPTION
+9791b69f0b1b8491ec3036778bb971cf *DESCRIPTION
 1a74e816682db12f596bf8a8a1fb39fb *NAMESPACE
 8748ed51de97c6071cc84c905f8263ae *NEWS
 65436eb58218977e61ef5e6bd0e58a8b *R/S3methods_islasso.R
@@ -20,15 +20,15 @@ b4d7ef3f83bb9c9d2bb316452f228ca9 *man/breast.Rd
 18175093514ee1276234b6130e73579e *man/confint.islasso.Rd
 80e3245a2cce96447f5e43a45cc43fc8 *man/diabetes.Rd
 46175146ff610005ea40f43ebc474815 *man/is.control.Rd
-2c95bfd4d093c5c008cd34d4ed0f400b *man/islasso-internal.Rd
-3ecc9a13abbeed3cf84452a055ee0913 *man/islasso-package.Rd
+07cefcd66898f4b90f2e49b82055a04d *man/islasso-internal.Rd
+5010d5e1b47955ddeb64ce6671f75ffe *man/islasso-package.Rd
 e07f66a5695047af89cdeebd05b17db7 *man/islasso.Rd
 21cd8d75e1ec264498c7788a35695a13 *man/islasso.path.Rd
 c80426a1d3902cdf03ca4f8e2a5b18bc *man/plot.islasso.Rd
 83af37300734573758699633101cfcf5 *man/plot.islasso.path.Rd
 6f1079dc20e4c29091441311ebdeade4 *man/predict.islasso.Rd
 ab2a6e5ccd1e0686873c9d5da879c15e *man/predict.islasso.path.Rd
-ad1dab6cbbe4427e1d6eb2038c15952f *man/simulXy.Rd
+00c5c918dde24a858bb8de97582cb102 *man/simulXy.Rd
 ec7ae1079e2ffef2a6de2e995e899e16 *man/summary.islasso.Rd
 a5844bf195c3f7c22d8e3d0de95edc23 *man/summary.islasso.path.Rd
 b6dc55dafcc24515b7b0b66eda1dbcbf *src/C_FORTRAN_interface.c

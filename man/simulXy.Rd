@@ -1,6 +1,5 @@
 \name{simulXy}
 \alias{simulXy}
-\alias{modelX}
 \title{Simulate model matrix and response}
 \usage{
 simulXy(n, p, interc = 0, beta, family = gaussian(), prop =

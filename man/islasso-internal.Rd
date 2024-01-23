@@ -4,7 +4,24 @@
 \alias{fmt.perc}
 \alias{qqNorm}
 \alias{ginv2}
+\alias{modelX}
 \alias{printCoefmat2}
+
+\alias{.checkinput}
+\alias{.startpoint}
+\alias{.islasso}
+
+\alias{checkinput.islasso.path}
+\alias{startpoint.islasso.path}
+\alias{islasso.path.fit.glm}
+\alias{islasso.path.fitter2}
+\alias{interpolate}
+
+\alias{makeHyp}
+\alias{printHyp}
+
+\alias{cislasso}
+\alias{ci.fitted.islasso}
 
 \alias{grad.islasso}
 \alias{hess.islasso}
