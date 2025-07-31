@@ -1,273 +1,185 @@
-fmt.perc <- function (probs, digits){
-  paste(format(100 * probs, trim = TRUE, scientific = FALSE, digits = digits), "%")
+qqNorm <- function(x,
+                   probs = seq(0.005, 0.995, length.out = 200),
+                   centre = FALSE, scale = FALSE,
+                   leg = TRUE, mean = 0, sd = 1,
+                   dF = FALSE, ylab = NULL,
+                   color = "black", ...) {
+  stopifnot(is.numeric(x))
+
+  if (centre) x <- x - mean(x)
+  if (scale)  x <- (x - mean(x)) / sd(x) * sd + mean
+
+  emp_q <- quantile(x, probs, names = FALSE)
+  teor_q <- qnorm(probs, mean = mean, sd = sd)
+
+  df <- data.frame(Theoretical = teor_q, Empirical = emp_q)
+
+  if (dF) {
+    df_cdf <- data.frame(
+      x = sort(x),
+      Empirical = seq_along(x) / length(x),
+      Theoretical = pnorm(sort(x), mean = mean, sd = sd)
+    )
+
+    p <- ggplot(df_cdf, aes(x = x)) +
+      geom_step(aes(y = Empirical), color = color, ...) +
+      geom_line(aes(y = Theoretical), color = "red", linewidth = 0.9) +
+      labs(x = "", y = "Distribution Function") +
+      theme_minimal()
+  } else {
+    p <- ggplot(df, aes(x = Theoretical, y = Empirical)) +
+      geom_point(color = color, ...) +
+      geom_abline(intercept = 0, slope = 1, color = "red", linewidth = 1) +
+      labs(x = "Theoretical Quantiles",
+           y = ylab %||% "Empirical Quantiles") +
+      theme_minimal()
+  }
+
+  if (leg && !dF) {
+    emp_stats <- sprintf("emp. mean = %.3f\nemp. sd = %.3f", mean(x), sd(x))
+    theor_stats <- sprintf("theor. mean = %.3f\ntheor. sd = %.3f", mean, sd)
+    p <- p +
+      annotate("text", x = min(teor_q), y = max(emp_q),
+               label = emp_stats, hjust = 0, vjust = 1, size = 3.2) +
+      annotate("text", x = max(teor_q), y = min(emp_q),
+               label = theor_stats, hjust = 1, vjust = 0, size = 3.2, color = "red")
+  }
+
+  return(p)
 }
 
-ginv2 <- function (X, tol = sqrt(.Machine$double.eps)){
-  if (length(dim(X)) > 2L || !(is.numeric(X) || is.complex(X)))
-    stop("'X' must be a numeric or complex matrix")
-  if (!is.matrix(X))
-    X <- as.matrix(X)
-  Xsvd <- svd(X)
-  if (is.complex(X))
-    Xsvd$u <- Conj(Xsvd$u)
-  Positive <- Xsvd$d > max(tol * Xsvd$d[1L], 0)
-  if (all(Positive))
-    Xsvd$v %*% (1/Xsvd$d * t(Xsvd$u))
-  else if (!any(Positive))
-    array(0, dim(X)[2L:1L])
-  else Xsvd$v[, Positive, drop = FALSE] %*% ((1/Xsvd$d[Positive]) * t(Xsvd$u[, Positive, drop = FALSE]))
-}
+#' Simulate Model Matrix and Response Vector
+#'
+#' Generates synthetic covariates and response vector from a specified distribution for simulation studies or method validation.
+#'
+#' @param n Integer. Number of observations.
+#' @param p Integer. Total number of covariates in the model matrix.
+#' @param interc Numeric. Intercept to include in the linear predictor. Default is \code{0}.
+#' @param beta Numeric vector of length \code{p}. Regression coefficients in the linear predictor.
+#' @param family Distribution and link function. Allowed: \code{gaussian()}, \code{binomial()}, \code{poisson()} and , \code{Gamma()}. Can be a string, function, or family object.
+#' @param prop Numeric in \code{[0,1]}. Used only if \code{beta} is missing; proportion of non-zero coefficients in \code{p}. Default is \code{0.1}.
+#' @param lim.b Numeric vector of length 2. Range for coefficients if \code{beta} is missing. Default: \code{c(-3, 3)}.
+#' @param sigma Standard deviation of Gaussian response. Default is \code{1}.
+#' @param size Integer. Number of trials for binomial response. Default is \code{1}.
+#' @param rho Numeric. Correlation coefficient for generating covariates. Used to create AR(1)-type covariance: \code{rho^|i-j|}. Default is \code{0}.
+#' @param scale.data Logical. Whether to scale columns of the model matrix. Default is \code{TRUE}.
+#' @param seed Optional. Integer seed for reproducibility.
+#' @param X Optional. Custom model matrix. If supplied, it overrides the internally generated \code{X}.
+#' @param dispersion Dispersion parameter of Gamma response. Default is \code{0.1}.
+#'
+#' @return A list with components:
+#' \item{X}{Model matrix of dimension \code{n x p}}
+#' \item{y}{Simulated response vector}
+#' \item{beta}{True regression coefficients used}
+#' \item{eta}{Linear predictor}
+#'
+#' @examples
+#' n <- 100; p <- 100
+#' beta <- c(runif(10, -3, 3), rep(0, p - 10))
+#' sim <- simulXy(n = n, p = p, beta = beta, seed = 1234)
+#' o <- islasso(y ~ ., data = sim$data, family = gaussian())
+#' summary(o, pval = 0.05)
+#'
+#' @export
+simulXy <- function(n, p, interc = 0, beta,
+                    family = gaussian(), prop = 0.1,
+                    lim.b = c(-3, 3), sigma = 1, size = 1,
+                    rho = 0, scale.data = TRUE,
+                    seed = NULL, X = NULL, dispersion = 0.1) {
 
-qqNorm <- function(x, probs=seq(.005, .995, l=200), centre=FALSE, scale=FALSE, leg=TRUE,
-                   mean=0, sd=1, add=FALSE, p.col=1, dF=FALSE, ylab, ...){
-  #a simple qqNorm function to compare an emprical distribution with respect to
-  # a Normal distribution with given mean and sd
-  #x: the data vector
-  #probs: percentiles wrt compute the quantiles to be plotted
-  #centre: if TRUE the observed data are centered (to have a zero mean)
-  #scale: if TRUE the observed data are scaled (to have a unit variance)
-  #leg: if TRUE the legend with some information is added
-  #mean, sd: mean and st.dev of the theoric Normal distribution
-  #add: if TRUE the QQ plot is added (provided graphical device is open..)
-  #p.col: the color of dots
-  #dF: se TRUE the distribution function (rather than the QQplot) is plotted
-  #author: vito.muggeo@unipa.it
-  if(centre) x <- x - mean(x)
-  if(scale){
-    x <- x/sd(x) + mean(x)*(sd(x)-1)/sd(x)
-  }
-  emp <- quantile(x, probs, names=FALSE)
-  emp <- c(min(x), emp, max(x))
-  
-  teor <- qnorm(probs, mean=mean, sd=sd)
-  teor <- qnorm(c(.0005, probs, .9995), mean=mean, sd=sd)
-  if(dF){
-    val <- seq(min(x), max(x), l=200)
-    plot(sort(x), 1:length(x)/length(x), type="s", xlab=deparse(substitute(x)), ylab="Distribution Function",  col=p.col,...)
-    lines(val, pnorm(val, mean=mean, sd=sd), col=2)
-  }else{
-    if(add){
-      points(teor, emp, pch=19, col=p.col)
-      return(invisible(NULL))
-    }
-    if(missing(ylab)) ylab <- "Empirical quantiles"
-    plot(teor, emp, xlab="Theoretical quantiles",
-         ylab=ylab, pch=19, col=p.col,
-         xlim=range(teor), ylim=range(emp), ...)
-    abline(0, 1, col=2, lwd=2)
-    #	abline(h=mean, v=mean, col=2, lty=3, lwd=1.5)
-    segments(par()$usr[1], mean(x), max(teor[emp<=mean(x)]), mean(x), col=1, lty=2)
-    segments(par()$usr[1], mean, max(teor[emp<=mean(x)]), mean, col=2, lty=3, lwd=1.5)
-    segments(mean, par()$usr[3], mean, mean(x), col=2, lty=3, lwd=1.5)
-  }
-  if(leg){
-    et <- c(paste("emp. mean=", round(mean(x), 3), sep=""), paste("emp. sd=", round(sd(x), 3), sep=""))
-    legend("topleft", et, bty="n", cex=.7 )
-    etT <- c(paste("theor. mean=", round(mean, 3), sep=""), paste("theor. sd=", round(sd, 3), sep=""))
-    legend("bottomright", etT, bty="n", cex=.7, text.col =2 )
-  }
-}
+  if (!is.null(seed)) set.seed(seed)
 
-simulXy <- function(n, p, interc=0, beta, family = gaussian(), prop = 0.1, 
-                    lim.b=c(-3,3), sigma = 1, size = 1, rho = 0, scale = TRUE, 
-                    seed, X){
-  if (!missing(seed)) set.seed(seed)
-  if (is.character(family)) 
-    family <- get(family, mode = "function", envir = parent.frame())
-  if (is.function(family)) 
-    family <- do.call(family, args = list(), envir = parent.frame())
-  if (is.null(family$family) | !(family$family %in% c("gaussian", "binomial", "poisson"))) {
-    #print(family)
-    stop("'family' not recognized!")
+  if (is.character(family)) family <- get(family, mode = "function", envir = parent.frame())
+  if (is.function(family)) family <- family()
+
+  fam <- family$family
+  if (is.null(fam) || !(fam %in% c("gaussian", "binomial", "poisson", "Gamma"))) {
+    stop("Family not recognized. Use 'gaussian', 'binomial', 'poisson', or 'Gamma'.")
   }
-  
+
   if (missing(beta)) {
-    if(prop <0 || prop>1) stop("invalid 'prop' ")
+    if (prop < 0 || prop > 1) stop("Invalid 'prop'. Must be between 0 and 1.")
     p.true <- trunc(prop * p)
     beta <- c(runif(p.true, lim.b[1], lim.b[2]), rep(0, p - p.true))
   }
-  if(missing(X)) {
-    X <- modelX(n, p, rho, scale)
-    colnames(X) <- paste0("X", 1:p)
+
+  if (is.null(X)) {
+    X <- modelX(n, p, rho, scale.data)
+    colnames(X) <- paste0("X", seq_len(p))
   }
-  eta <- drop(X %*% beta) + interc
+
+  eta <- as.vector(X %*% beta + interc)
   mu <- family$linkinv(eta)
-  y <- switch(family$family, gaussian = rnorm(n, mu, sigma), 
-              binomial = rbinom(n, size, mu), poisson = rpois(n, mu))
-  if (family$family == "binomial" & size > 1) {
-    y <- cbind(size - y, y)
-    colnames(y) <- c("failure", "success")
+
+  y <- switch(fam,
+              gaussian = rnorm(n, mean = mu, sd = sigma),
+              binomial = rbinom(n, size = size, prob = mu),
+              poisson  = rpois(n, lambda = mu),
+              Gamma    = rgamma(n, shape = 1 / dispersion, scale = mu * dispersion))
+
+  if (fam == "binomial" && size > 1) {
+    y <- cbind(failure = size - y, success = y)
   }
-  data.frame(y = y, X)
+
+  out <- list(data = data.frame(y = y, X),
+              beta0 = interc, beta = beta)
+  return(out)
 }
 
-modelX <- function(n, p, rho=.5, scale=TRUE){
-  Sigma <- forceSymmetric(t(rho^outer(1:p,1:p,"-")))
+
+modelX <- function(n, p, rho = 0.5, scale.data = TRUE) {
+  # Crea matrice di correlazione AR(1)-like
+  Sigma <- rho^abs(outer(1:p, 1:p, "-"))
+
+  # Fattorizzazione di Cholesky
   cSigma <- chol(Sigma)
-  X <- as.matrix(replicate(p, rnorm(n)) %*% cSigma)
-  if(scale) X <- scale(X)
+
+  # Generazione di dati simulati con correlazione specificata
+  X <- matrix(rnorm(n * p), n, p) %*% cSigma
+
+  # Opzionale: scala i dati
+  if (scale.data) {
+    X <- scale(X)
+  }
+
   return(X)
 }
 
-printCoefmat2 <- function (x, digits = max(3L, getOption("digits") - 2L), signif.stars = getOption("show.signif.stars"), 
-                           signif.legend = signif.stars, dig.tst = max(1L, min(5L, digits - 1L)), cs.ind = 1:k, tst.ind = k + 1, 
-                           zap.ind = integer(), P.values = NULL, 
-                           has.Pvalue = nc >= 4L && length(cn <- colnames(x)) && substr(cn[nc], 1L, 3L) %in% c("Pr(", "p-v"), 
-                           eps.Pvalue = .Machine$double.eps, na.print = "NA", quote = FALSE, right = TRUE, ...){
-  if (is.null(d <- dim(x)) || length(d) != 2L) 
-    stop("'x' must be coefficient matrix/data frame")
-  nc <- d[2L]
-  if (is.null(P.values)) {
-    scp <- getOption("show.coef.Pvalues")
-    if (!is.logical(scp) || is.na(scp)) {
-      warning("option \"show.coef.Pvalues\" is invalid: assuming TRUE")
-      scp <- TRUE
-    }
-    P.values <- has.Pvalue && scp
-  }
-  else if (P.values && !has.Pvalue) 
-    stop("'P.values' is TRUE, but 'has.Pvalue' is not")
-  if (has.Pvalue && !P.values) {
-    d <- dim(xm <- data.matrix(x[, -nc, drop = FALSE]))
-    nc <- nc - 1
-    has.Pvalue <- FALSE
-  }
-  else xm <- data.matrix(x)
-  k <- nc - has.Pvalue - (if (missing(tst.ind)) 
-    1
-    else length(tst.ind))
-  if (!missing(cs.ind) && length(cs.ind) > k) 
-    stop("wrong k / cs.ind")
-  Cf <- array("", dim = d, dimnames = dimnames(xm))
-  ok <- !(ina <- is.na(xm))
-  for (i in zap.ind) xm[, i] <- zapsmall(xm[, i], digits)
-  if (length(cs.ind)) {
-    acs <- abs(coef.se <- xm[, cs.ind, drop = FALSE])
-    if (any(ia <- is.finite(acs))) {
-      digmin <- 1 + if (length(acs <- acs[ia & acs != 
-                                          0])) 
-        floor(log10(range(acs[acs != 0], finite = TRUE)))
-      else 0
-      Cf[, cs.ind] <- format(round(coef.se, max(1L, digits - 
-                                                  digmin)), digits = digits)
-    }
-  }
-  if (length(tst.ind)) 
-    Cf[, tst.ind] <- format(round(xm[, tst.ind], digits = dig.tst), 
-                            digits = digits)
-  if (any(r.ind <- !((1L:nc) %in% c(cs.ind, tst.ind, if (has.Pvalue) nc)))) 
-    for (i in which(r.ind)) Cf[, i] <- format(xm[, i], digits = digits)
-  ok[, tst.ind] <- FALSE
-  okP <- if (has.Pvalue) 
-    ok[, -nc]
-  else ok
-  x1 <- Cf[okP]
-  dec <- getOption("OutDec")
-  if (dec != ".") 
-    x1 <- chartr(dec, ".", x1)
-  x0 <- (xm[okP] == 0) != (as.numeric(x1) == 0)
-  if (length(not.both.0 <- which(x0 & !is.na(x0)))) {
-    Cf[okP][not.both.0] <- format(xm[okP][not.both.0], digits = max(1L, 
-                                                                    digits - 1L))
-  }
-  if (any(ina)) 
-    Cf[ina] <- na.print
-  if (P.values) {
-    if (!is.logical(signif.stars) || is.na(signif.stars)) {
-      warning("option \"show.signif.stars\" is invalid: assuming TRUE")
-      signif.stars <- TRUE
-    }
-    if (any(okP <- ok[, nc])) {
-      pv <- as.vector(xm[, nc])
-      Cf[okP, nc] <- format.pval(pv[okP], digits = dig.tst, 
-                                 eps = eps.Pvalue)
-      signif.stars <- signif.stars && any(pv[okP] < 0.1)
-      if (signif.stars) {
-        Signif <- symnum(pv, corr = FALSE, na = FALSE, 
-                         cutpoints = c(0, 0.001, 0.01, 0.05, 0.1, 1), 
-                         symbols = c("***", "**", "*", ".", " "))
-        Cf <- cbind(Cf, format(Signif))
+
+lminfl <- function(mod, tol = 1e-8) {
+  # Estrae la decomposizione QR
+  Q <- qr.Q(mod$qr)
+  n2 <- nrow(Q)
+  X <- model.matrix(mod)
+  n <- nrow(X)
+  k <- ncol(X)
+  q <- if (is.matrix(residuals(mod))) ncol(residuals(mod)) else 1
+  resid <- residuals(mod)
+
+  # Calcolo dei valori hat: diagonale della matrice degli proiettori
+  hat <- rowSums(Q^2)[1:n]
+  hat[hat >= (1 - tol)] <- 1.0
+
+  # Calcolo della sigma leave-one-out per ogni osservazione e per ogni colonna (se multivariate)
+  denom <- (n2 - k - 1)
+  sigma <- matrix(NA, n, q)
+
+  for (j in seq_len(q)) {
+    res_j <- if (q == 1) resid else resid[, j]
+    rss <- sum(res_j^2)
+    for (i in seq_len(n)) {
+      if (hat[i] < 1) {
+        sigma[i, j] <- sqrt((rss - res_j[i]^2 / (1 - hat[i])) / denom)
+      } else {
+        sigma[i, j] <- sqrt(rss / denom)
       }
     }
-    else signif.stars <- FALSE
   }
-  else signif.stars <- FALSE
-  # Cf2 <- matrix("", nrow(Cf) + 1, ncol(Cf), dimnames = list(c("", rownames(Cf)), colnames(Cf)))
-  # Cf2[1, 3:ncol(Cf)] <- Cf[1, 3:ncol(Cf)]
-  # Cf2[2:nrow(Cf2), 1:2] <- Cf[, 1:2]
-  # Cf <- Cf2
-  Cf[nrow(Cf), 1:2] <- ""
-  print.default(Cf, quote = quote, right = right, na.print = na.print, 
-                ...)
-  if (signif.stars && signif.legend) {
-    if ((w <- getOption("width")) < nchar(sleg <- attr(Signif, 
-                                                       "legend"))) 
-      sleg <- strwrap(sleg, width = w - 2, prefix = "  ")
-    cat("---\nSignif. codes:  ", sleg, sep = "", fill = w + 
-          4 + max(nchar(sleg, "bytes") - nchar(sleg)))
-  }
-  invisible(x)
-}
 
-grad.islasso <- function(object, ...) {
-  x <- model.matrix(object)
-  y <- object$y
-  b <- coef(object)
-  s <- object$se
-  offset <- object$offset
-  c <- object$control$c
-  lambda <- object$lambda
-  alpha <- object$alpha
-  unpenalized <- object$internal$unpenalized
-  family <- family(object)
-  weights <- weights(object)
-  
-  eta <- x %*% b + offset
-  mu <- family$linkinv(eta)
-  v <- family$variance(mu)
-  m.e <- family$mu.eta(eta)
-  r <- y - mu
-  rv <- r / v * m.e * weights
-  grad <- drop(t(rv) %*% x)
-  
-  bsc <- (b / s)
-  r <- alpha * (c * (2 * pnorm(bsc, 0, 1) - 1) + (1 - c) * (2 * pnorm(bsc, 0, 1E-5) - 1)) + (1 - alpha) * b
-  if(any(unpenalized)) r[unpenalized] <- 0
-  
-  return(- grad + lambda * r)
-}
-
-hess.islasso <- function(object, ...) {
-  H <- object$internal$XtX
-  b <- coef(object)
-  s <- object$se
-  c <- object$control$c
-  lambda <- object$lambda
-  alpha <- object$alpha
-  
-  bsc <- (b / s)
-  diag(H) <- diag(H) + 
-    lambda * (2 * alpha * (c * dnorm(bsc, 0, 1) + (1 - c) * dnorm(bsc, 0, 1E-5)) / s + (1 - alpha))
-  return(H)
+  return(list(hat = hat, sigma = drop(sigma)))
 }
 
 is.influence <- function (model, do.coef = TRUE) {
-  infl <- function(mqr, do.coef, e, tol) {
-    qr <- mqr$qr
-    qraux <- mqr$qraux
-    n <- nrow(qr)
-    k <- mqr$rank
-    if(length(e) != n) e <- c(e, rep(0, n - length(e)))
-    tmp <- .Fortran(C_lminfl, qr, n, n, k, as.integer(1), qraux, e, hat = double(n), 
-                    sigma = double(n), tol)
-    # tmp <- .Fortran(C_lminfl, qr, n, n, k, as.integer(do.coef), qraux, e, hat = double(n), 
-    #                 coefficients = matrix(0.0, n, k), sigma = double(n), tol)
-    for (i in seq_len(n)) {
-      if (tmp$hat[i] > 1. - tol) tmp$hat[i]  <-  1.
-    }
-    tmp[c("hat", "sigma")]
-  }
-  
   wt.res <- weighted.residuals(model)
   e <- na.omit(wt.res)
   n <- length(wt.res)
@@ -283,8 +195,8 @@ is.influence <- function (model, do.coef = TRUE) {
     do.coef <- as.logical(do.coef)
     tol <- 10 * .Machine$double.eps
     # res2 <- .Call(stats:::C_influence, mqr, e, tol)
-    res <- infl(mqr, FALSE, e, tol)
-    
+    # res <- infl(mqr, FALSE, e, tol)
+    res <- lminfl(model, tol)
     res$hat <- res$hat[1:n]
     res$sigma <- res$sigma[1:n]
     if (do.coef) {
@@ -320,13 +232,13 @@ is.influence <- function (model, do.coef = TRUE) {
       if (do.coef) {
         coefficients <- naresid(model$na.action, res$coefficients)
         coefficients[is.na(coefficients)] <- 0
-        res$coefficients <- if (is.mlm) 
+        res$coefficients <- if (is.mlm)
           coefficients
         else drop1d(coefficients)
       }
       sigma <- naresid(model$na.action, res$sigma)
       sigma[is.na(sigma)] <- sqrt(deviance(model)/df.residual(model))
-      res$sigma <- if (is.mlm) 
+      res$sigma <- if (is.mlm)
         sigma
       else drop(sigma)
     }
@@ -346,14 +258,14 @@ is.influence <- function (model, do.coef = TRUE) {
 }
 
 islasso.diag <- function (glmfit) {
-  w <- if (is.null(glmfit$prior.weights)) 
+  w <- if (is.null(glmfit$prior.weights))
     rep(1, length(glmfit$residuals))
   else glmfit$prior.weights
   sd <- sqrt(glmfit$dispersion)
   dev <- residuals(glmfit, type = "deviance") / sd
   pear <- residuals(glmfit, type = "pearson") / sd
   h <- rep(0, length(w))
-  h[w != 0] <- is.influence(glmfit)$hat
+  h[w != 0] <- influence(glmfit)$hat
   p <- glmfit$rank
   rp <- pear/sqrt(1 - h)
   rd <- dev/sqrt(1 - h)
@@ -362,21 +274,21 @@ islasso.diag <- function (glmfit) {
   list(res = res, rd = rd, rp = rp, cook = cook, h = h, sd = sd)
 }
 
-islasso.diag.plots <- function (glmfit, glmdiag = islasso.diag(glmfit), subset = NULL, 
+islasso.diag.plots <- function (glmfit, glmdiag = islasso.diag(glmfit), subset = NULL,
                                 iden = FALSE, labels = NULL, ret = FALSE) {
   if (is.null(glmdiag)) glmdiag <- islasso.diag(glmfit)
-  if (is.null(subset)) 
+  if (is.null(subset))
     subset <- seq_along(glmdiag$h)
-  else if (is.logical(subset)) 
+  else if (is.logical(subset))
     subset <- seq_along(subset)[subset]
-  else if (is.numeric(subset) && all(subset < 0)) 
+  else if (is.numeric(subset) && all(subset < 0))
     subset <- (1L:(length(subset) + length(glmdiag$h)))[subset]
   else if (is.character(subset)) {
-    if (is.null(labels)) 
+    if (is.null(labels))
       labels <- subset
     subset <- seq_along(subset)
   }
-  
+
   par(mfrow = c(2, 2))
   x1 <- predict(glmfit)
   plot(x1, glmdiag$res, xlab = "Linear predictor", ylab = "Residuals")
@@ -395,27 +307,27 @@ islasso.diag.plots <- function (glmfit, glmdiag = islasso.diag(glmfit), subset =
   nobs <- rank.fit + glmfit$df.residual
   cooky <- 8/(nobs - 2 * rank.fit)
   hy <- (2 * rank.fit)/(nobs - 2 * rank.fit)
-  if ((cooky >= ry[1L]) && (cooky <= ry[2L])) 
+  if ((cooky >= ry[1L]) && (cooky <= ry[2L]))
     abline(h = cooky, lty = 2)
-  if ((hy >= rx[1L]) && (hy <= rx[2L])) 
+  if ((hy >= rx[1L]) && (hy <= rx[2L]))
     abline(v = hy, lty = 2)
   pars[[3L]] <- par("usr")
   plot(subset, glmdiag$cook, xlab = "Case", ylab = "Cook statistic")
-  if ((cooky >= ry[1L]) && (cooky <= ry[2L])) 
+  if ((cooky >= ry[1L]) && (cooky <= ry[2L]))
     abline(h = cooky, lty = 2)
   xx <- list(x1, x2, hh, subset)
   yy <- list(glmdiag$res, y2, glmdiag$cook, glmdiag$cook)
   pars[[4L]] <- par("usr")
-  if (is.null(labels)) 
+  if (is.null(labels))
     labels <- names(x1)
   while (iden) {
     cat("****************************************************\n")
     cat("Please Input a screen number (1,2,3 or 4)\n")
     cat("0 will terminate the function \n")
     num <- as.numeric(readline())
-    if ((length(num) > 0L) && ((num == 1) || (num == 2) || 
+    if ((length(num) > 0L) && ((num == 1) || (num == 2) ||
                                (num == 3) || (num == 4))) {
-      cat(paste("Interactive Identification for screen", 
+      cat(paste("Interactive Identification for screen",
                 num, "\n"))
       cat("left button = Identify, center button = Exit\n")
       nm <- num + 1
@@ -426,15 +338,15 @@ islasso.diag.plots <- function (glmfit, glmdiag = islasso.diag(glmfit), subset =
     else iden <- FALSE
   }
   par(mfrow = c(1, 1))
-  if (ret) 
+  if (ret)
     glmdiag
   else invisible()
 }
 
-predislasso <- function(object, newdata, type = c("response", "terms"), 
+predislasso <- function(object, newdata, type = c("response", "terms"),
                         terms = NULL, na.action = na.pass, ...){
   type <- match.arg(type)
-  
+
   tt <- terms(object)
   if (missing(newdata) || is.null(newdata)) {
     mm <- X <- model.matrix(object)
@@ -447,13 +359,13 @@ predislasso <- function(object, newdata, type = c("response", "terms"),
     if (!is.null(cl <- attr(Terms, "dataClasses"))) .checkMFClasses(cl, m)
     X <- model.matrix(Terms, m, contrasts.arg = object$contrasts)
     offset <- rep(0, nrow(X))
-    if (!is.null(off.num <- attr(tt, "offset"))) 
+    if (!is.null(off.num <- attr(tt, "offset")))
       for (i in off.num) offset <- offset + eval(attr(tt, "variables")[[i + 1]], newdata)
-    if (!is.null(object$call$offset)) 
+    if (!is.null(object$call$offset))
       offset <- offset + eval(object$call$offset, newdata)
     mmDone <- FALSE
   }
-  
+
   n <- object$internal$n
   p <- object$internal$p
   p1 <- seq_len(p)
@@ -461,7 +373,7 @@ predislasso <- function(object, newdata, type = c("response", "terms"),
   beta <- object$coefficients
   predictor <- drop(X[, piv, drop = FALSE] %*% beta[piv])
   if (!is.null(offset)) predictor <- predictor + offset
-  
+
   if (type == "terms") {
     if (!mmDone) {
       mm <- model.matrix(object)
@@ -470,7 +382,7 @@ predislasso <- function(object, newdata, type = c("response", "terms"),
     aa <- attr(mm, "assign")
     ll <- attr(tt, "term.labels")
     hasintercept <- attr(tt, "intercept") > 0L
-    if (hasintercept) 
+    if (hasintercept)
       ll <- c("(Intercept)", ll)
     aaa <- factor(aa, labels = ll)
     asgn <- split(order(aa), aaa)
@@ -483,7 +395,7 @@ predislasso <- function(object, newdata, type = c("response", "terms"),
     if (nterms > 0) {
       predictor <- matrix(ncol = nterms, nrow = NROW(X))
       dimnames(predictor) <- list(rownames(X), names(asgn))
-      if (hasintercept) 
+      if (hasintercept)
         X <- sweep(X, 2L, avx, check.margin = FALSE)
       unpiv <- rep.int(0L, NCOL(X))
       unpiv[piv] <- p1
@@ -491,14 +403,14 @@ predislasso <- function(object, newdata, type = c("response", "terms"),
         iipiv <- asgn[[i]]
         ii <- unpiv[iipiv]
         iipiv[ii == 0L] <- 0L
-        predictor[, i] <- if (any(iipiv > 0L)) 
+        predictor[, i] <- if (any(iipiv > 0L))
           X[, iipiv, drop = FALSE] %*% beta[iipiv]
         else 0
       }
       if (!is.null(terms)) predictor <- predictor[, terms, drop = FALSE]
     }
     else predictor <- ip <- matrix(0, n, 0L)
-    attr(predictor, "constant") <- if (hasintercept) 
+    attr(predictor, "constant") <- if (hasintercept)
       termsconst
     else 0
   }

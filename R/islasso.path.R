@@ -1,8 +1,117 @@
-islasso.path  <-  function(formula, family = gaussian(), lambda = NULL, nlambda = 100, lambda.min.ratio = ifelse(nobs < nvars, 1E-2, 1E-03), 
-                           alpha = 1, data, weights, subset, offset, contrasts = NULL, unpenalized, control = is.control()) {
+#' Induced Smoothed Lasso Regularization Path
+#'
+#' Fits a sequence of penalized regression models using the Induced Smoothing Lasso approach over a grid of lambda values.
+#' Supports elastic-net penalties and generalized linear models: Gaussian, Binomial, Poisson, and Gamma.
+#'
+#' @aliases islasso.path print.islasso.path islasso.path.fit coef.islasso.path
+#'          deviance.islasso.path fitted.islasso.path residuals.islasso.path
+#'          logLik.islasso.path print.logLik.islasso.path model.matrix.islasso.path
+#'
+#' @param formula Model formula of type \code{response ~ predictors}.
+#' @param family Response distribution. Supported families: \code{gaussian()}, \code{binomial()}, \code{poisson()}, \code{Gamma()}.
+#' @param lambda Optional numeric vector of lambda values. If not provided, a sequence is automatically generated.
+#' @param nlambda Integer. Number of lambda values to generate if \code{lambda} is missing. Default is \code{100}.
+#' @param lambda.min.ratio Smallest lambda as a fraction of \code{lambda.max}. Default: \code{1e-2} if \code{nobs < nvars}, else \code{1e-3}.
+#' @param alpha Elastic-net mixing parameter: \code{alpha = 1} is lasso, \code{alpha = 0} is ridge.
+#' @param data Data frame containing model variables.
+#' @param weights Optional observation weights.
+#' @param subset Optional logical or numeric vector to subset observations.
+#' @param offset Optional vector of prior known components for the linear predictor.
+#' @param contrasts Optional contrast settings for factor variables.
+#' @param unpenalized Optional vector of variable names or indices excluded from penalization.
+#' @param control A list of control parameters via \code{\link{is.control}}.
+#'
+#' @details
+#' This function fits a regularization path of models using the induced smoothing paradigm, replacing the non-smooth L1 penalty with a differentiable surrogate.
+#' Standard errors are returned for all lambda points, allowing for Wald-based hypothesis testing. The regularization path spans a range of lambda values,
+#' either user-defined or automatically computed.
+#'
+#' @return A list with components:
+#' \item{call}{Matched function call.}
+#' \item{Info}{Matrix with diagnostics: lambda, deviance, degrees of freedom, dispersion, iterations, convergence status.}
+#' \item{GoF}{Model goodness-of-fit metrics: AIC, BIC, AICc, GCV, GIC, eBIC.}
+#' \item{Coef}{Matrix of coefficients across lambda values.}
+#' \item{SE}{Matrix of standard errors.}
+#' \item{Weights}{Matrix of mixing weights for the smoothed penalty.}
+#' \item{Gradient}{Matrix of gradients for the smoothed penalty.}
+#' \item{Linear.predictors, Fitted.values, Residuals}{Matrices of fitted quantities across the path.}
+#' \item{Input}{List of input arguments and design matrix.}
+#' \item{control, formula, model, terms, data, xlevels, contrasts}{Standard model components.}
+#'
+#' @references
+#' Cilluffo G., Sottile G., La Grutta S., Muggeo V.M.R. (2019).
+#' \emph{The Induced Smoothed Lasso: A practical framework for hypothesis testing in high dimensional regression}.
+#' Statistical Methods in Medical Research. DOI: 10.1177/0962280219842890
+#'
+#' Sottile G., Cilluffo G., Muggeo V.M.R. (2019).
+#' \emph{The R package islasso: estimation and hypothesis testing in lasso regression}.
+#' Technical Report. DOI: 10.13140/RG.2.2.16360.11521
+#'
+#' @author Gianluca Sottile \email{gianluca.sottile@unipa.it}
+#'
+#' @seealso \code{\link{islasso}}, \code{\link{summary.islasso.path}}, \code{\link{coef.islasso.path}},
+#'          \code{\link{predict.islasso.path}}, \code{\link{GoF.islasso.path}}
+#'
+#' @examples
+#' n <- 100; p <- 30; p1 <- 10  # number of nonzero coefficients
+#'
+#' beta.veri <- sort(round(c(seq(.5, 3, length.out = p1/2),
+#'                          seq(-1, -2, length.out = p1/2)), 2))
+#' beta <- c(beta.veri, rep(0, p - p1))
+#' sim1 <- simulXy(n = n, p = p, beta = beta, seed = 1, family = gaussian())
+#' o <- islasso.path(y ~ ., data = sim1$data,
+#'                   family = gaussian(), nlambda = 30L)
+#' o
+#'
+#' summary(o, lambda = 10, pval = 0.05)
+#' coef(o, lambda = 10)
+#' fitted(o, lambda = 10)
+#' predict(o, type = "response", lambda = 10)
+#' plot(o, yvar = "coef")
+#' residuals(o, lambda = 10)
+#' deviance(o, lambda = 10)
+#' logLik(o, lambda = 10)
+#' GoF.islasso.path(o)
+#'
+#' \dontrun{
+#' ##### binomial ######
+#' beta <- c(1, 1, 1, rep(0, p - 3))
+#' sim2 <- simulXy(n = n, p = p, beta = beta, interc = 1, seed = 1,
+#'                 size = 100, family = binomial())
+#' o2 <- islasso.path(cbind(y.success, y.failure) ~ ., data = sim2$data,
+#'                    family = binomial(), lambda = seq(0.1, 100, l = 50L))
+#' temp <- GoF.islasso.path(o2)
+#' summary(o2, pval = 0.05, lambda = temp$lambda.min["BIC"])
+#'
+#' ##### poisson ######
+#' beta <- c(1, 1, 1, rep(0, p - 3))
+#' sim3 <- simulXy(n = n, p = p, beta = beta, interc = 1, seed = 1,
+#'                 family = poisson())
+#' o3 <- islasso.path(y ~ ., data = sim3$data, family = poisson(), nlambda = 30L)
+#' temp <- GoF.islasso.path(o3)
+#' summary(o3, pval = 0.05, lambda = temp$lambda.min["BIC"])
+#'
+#' ##### Gamma ######
+#' beta <- c(1, 1, 1, rep(0, p - 3))
+#' sim4 <- simulXy(n = n, p = p, beta = beta, interc = -1, seed = 1,
+#'                 family = Gamma(link = "log"))
+#' o4 <- islasso.path(y ~ ., data = sim4$data, family = Gamma(link = "log"),
+#'                    nlambda = 30L)
+#' temp <- GoF.islasso.path(o4)
+#' summary(o4, pval = .05, lambda = temp$lambda.min["BIC"])
+#' }
+#'
+#' @export
+islasso.path <- function(formula, family = gaussian(), lambda = NULL, nlambda = 100,
+                         lambda.min.ratio = ifelse(nobs < nvars, 1E-2, 1E-04),
+                         alpha = 1, data, weights, subset, offset, contrasts = NULL,
+                         unpenalized, control = is.control()) {
   this.call <- match.call()
-  
+
+  # Handle missing data argument
   if(missing(data)) data <- environment(formula)
+
+  # Create model frame
   mf <- match.call(expand.dots = FALSE)
   m <- match(c("formula", "data", "subset", "weights", "offset"), names(mf), 0L)
   ioff <- if(m[5] != 0) TRUE else FALSE
@@ -11,44 +120,70 @@ islasso.path  <-  function(formula, family = gaussian(), lambda = NULL, nlambda 
   mf[[1L]] <- as.name("model.frame")
   if(ioff) off <- mf$offset
   mf <- eval(mf, parent.frame())
+
+  # Extract model components
   mt <- attr(mf, "terms")
   y <- model.response(mf, "any")
-  x <- if(!is.empty.model(mt)) model.matrix(mt, mf, contrasts) else stop("Model matrix is empty!")
+
+  # Create model matrix
+  x <- if(!is.empty.model(mt)) {
+    model.matrix(mt, mf, contrasts)
+  } else {
+    stop("Model matrix is empty!")
+  }
+
+  # Get dimensions early for use in lambda.min.ratio
   np <- dim(x)
   nobs <- as.integer(np[1])
   nvars <- as.integer(np[2])
-  temp <- which(attr(mt, "dataClasses")[names(attr(mt, "dataClasses")) %in% attr(mt, "term.labels")] %in% c("factor", "character"))
+
+  # Factor handling
+  temp <- which(attr(mt, "dataClasses")[names(attr(mt, "dataClasses")) %in%
+                                          attr(mt, "term.labels")] %in% c("factor", "character"))
   temp <- which(attr(x, "assign") %in% temp)
+
+  # Handle offset
   if(ioff){
     noff <- match(unlist(lapply(off, as.character)), colnames(x))
     if(!all(is.na(noff))) x <- x[, -noff[which(noff!=0)]]
   }
   offset <- as.vector(model.offset(mf))
   if(!is.null(offset)){
-    if(length(offset) != NROW(y)) stop(gettextf("number of offsets is %d should equal %d (number of observations)",
-                                                length(offset), NROW(y)), domain = NA)
+    if(length(offset) != NROW(y))
+      stop(gettextf("number of offsets is %d should equal %d (number of observations)",
+                    length(offset), NROW(y)), domain = NA)
   }
+
+  # Handle weights
   weights <- as.vector(model.weights(mf))
   if (!is.null(weights) && !is.numeric(weights))
     stop("'weights' must be a numeric vector")
   if (!is.null(weights) && any(weights < 0))
     stop("negative weights not allowed")
+
+  # Validate alpha
   if(alpha > 1 | alpha < 0)
     stop("alpha must be in [0, 1] (0 for ridge penalty, 1 for lasso penalty)")
+
+  # Handle intercept
   if(attr(mt,"intercept") == 0){
     intercept <- FALSE
-  }
-  else{
+  } else {
     intercept <- TRUE
     x <- x[, -1, drop = FALSE]
   }
+
   attributes(x)$dataClasses <- temp
+
+  # Handle unpenalized variables
   if(missing(unpenalized)) unpenalized <- NULL
-  
-  fit <- islasso.path.fit(X = x, y = y, family = family, lambda = lambda, nlambda = nlambda, 
-                          lambda.min.ratio = lambda.min.ratio, alpha = alpha, intercept = intercept, 
+
+  # Fit the model
+  fit <- islasso.path.fit(X = x, y = y, family = family, lambda = lambda, nlambda = nlambda,
+                          lambda.min.ratio = lambda.min.ratio, alpha = alpha, intercept = intercept,
                           weights = weights, offset = offset, unpenalized = unpenalized, control = control)
-  
+
+  # Add necessary components to fit
   fit$call <- this.call
   fit$formula <- formula
   fit$model <- mf
@@ -57,175 +192,242 @@ islasso.path  <-  function(formula, family = gaussian(), lambda = NULL, nlambda 
   fit$contrasts <- contrasts
   fit$xlevels <- .getXlevels(mt, mf)
   class(fit) <- c('islasso.path', "islasso")
+
   return(fit)
 }
 
-islasso.path.fit <- function(X, y, family = gaussian(), lambda, nlambda, 
-                             lambda.min.ratio, alpha = 1, intercept = FALSE, 
-                             weights = NULL, offset = NULL, 
-                             unpenalized = NULL, control = is.control()){
+#' @export
+islasso.path.fit <- function(X, y, family = gaussian(), lambda, nlambda,
+                             lambda.min.ratio, alpha = 1, intercept = FALSE,
+                             weights = NULL, offset = NULL, unpenalized = NULL,
+                             control = is.control()){
   this.call <- match.call()
-  
-  # call the general input checking function
-  prep <- checkinput.islasso.path(X, y, family, lambda, nlambda, lambda.min.ratio, alpha, intercept, weights, offset, unpenalized, control)
-  
-  # call the starting point function
-  start <- startpoint.islasso.path(prep$X, prep$y, prep$lambda, alpha, prep$weights, prep$offset, prep$mustart, prep$family, intercept, prep$setting)
-  
-  # Lambda[prep$unpenalized] <- 0
-  
-  fam <-  c("binomial","poisson","Gamma"); fam2 <-  c("quasibinomial","quasipoisson","Gamma")
-  if((a <- prep$tempFamily %in% fam) | (prep$tempFamily %in% fam2)){
-    fam <- ifelse(a, pmatch(prep$tempFamily, fam), pmatch(prep$tempFamily, fam2))
-    link <- switch(fam,
-                   "1"=pmatch(prep$tempLink, c("logit","probit")),
-                   "2"=pmatch(prep$tempLink, c("log")),
-                   "3"=pmatch(prep$tempLink, c("inverse","log","identity")))
+
+  # Check inputs - this is a core step, no optimization needed as it's called once
+  prep <- checkinput.islasso.path(X, y, family, lambda, nlambda, lambda.min.ratio,
+                                  alpha, intercept, weights, offset, unpenalized, control)
+
+  # Get starting point - also a one-time call
+  start <- startpoint.islasso.path(prep$X, prep$y, prep$lambda, alpha, prep$weights,
+                                   prep$offset, prep$mustart, prep$family, intercept, prep$setting)
+
+  # Determine family and link
+  fam <- 0
+  link <- 0
+  fam_names <- c("binomial", "poisson", "Gamma")
+  fam_names2 <- c("quasibinomial", "quasipoisson", "Gamma")
+
+  if((a <- prep$tempFamily %in% fam_names) | (prep$tempFamily %in% fam_names2)){
+    fam <- ifelse(a, match(prep$tempFamily, fam_names), match(prep$tempFamily, fam_names2))
+
+    link_options <- switch(fam,
+                           "1" = c("logit", "probit"),
+                           "2" = c("log"),
+                           "3" = c("inverse", "log", "identity"))
+
+    link <- match(prep$tempLink, link_options)
   }
-  else{
-    fam <- 0
-    link <- 0
-  }
-  # browser()
-  # out <- islasso.path.fit.lm(prep, start, prep$lambda, fam, link)
+
   out <- islasso.path.fit.glm(prep, start, start$lambda, fam, link)
+
   out$control <- prep$setting
   return(out)
 }
 
-checkinput.islasso.path <- function(X, y, family, lambda, nlambda, lambda.min.ratio, alpha, intercept, 
+checkinput.islasso.path <- function(X, y, family, lambda, nlambda, lambda.min.ratio, alpha, intercept,
                                     weights, offset, unpenalized, control) {
-  get_start <- function (x, y, weights, family, intercept, offset, exclude, alpha) {
+  # Helper function for lambda calculation - moved inside to avoid namespace clutter
+  get_start <- function(x, y, weights, family, intercept, offset, exclude, alpha) {
     nobs <- nrow(x)
     nvars <- ncol(x)
-    is.offset <- ifelse(all(offset == 0), FALSE, TRUE)
+    is.offset <- !all(offset == 0)
+
+    # Calculate mu
     if (intercept) {
       if (is.offset) {
         suppressWarnings(tempfit <- glm(y ~ 1, family = family, weights = weights, offset = offset))
         mu <- tempfit$fitted.values
-      }
-      else {
+      } else {
         mu <- rep(weighted.mean(y, weights), times = nobs)
       }
-    }
-    else {
+    } else {
       mu <- family$linkinv(offset)
     }
+
+    # Calculate penalty components
     nulldev <- sum(family$dev.resids(y, mu, weights))
     ju <- rep(1, nvars)
     ju[exclude] <- 0
+
+    # More efficient calculation of g
     r <- y - mu
     eta <- family$linkfun(mu)
     v <- family$variance(mu)
     m.e <- family$mu.eta(eta)
-    weights <- weights/sum(weights)
-    rv <- r/v * m.e * weights
-    g <- abs(drop(t(rv) %*% x)) * ju
-    lambda_max <- max(g)/max(alpha, 0.001)
-    list(nulldev = nulldev, mu = mu, lambda_max = lambda_max*nobs)
+
+    # Normalize weights
+    w_norm <- weights / sum(weights)
+
+    # Vectorized computation
+    rv <- r/v * m.e * w_norm
+    g <- abs(colSums(rv * x)) * ju
+
+    lambda_max <- max(g) / max(alpha, 0.001)
+    return(list(nulldev = nulldev, mu = mu, lambda_max = lambda_max * nobs))
   }
-  
-  X <- as.matrix(X); X <- if(intercept) cbind(1, X) else X
-  nobs <- nrow(X); nvars <- ncol(X)
+
+  # Convert X to matrix (efficient handling)
+  X <- as.matrix(X)
+  X <- if(intercept) cbind(1, X) else X
+  nobs <- nrow(X)
+  nvars <- ncol(X)
+
+  # Create column names if needed
   nms <- colnames(X)
   if(is.null(nms) & ncol(X) != 0) nms <- paste0("X", 1:nvars)
   if(intercept) nms[1] <- "(Intercept)"
   colnames(X) <- nms
-  
-  # check argument
-  if(alpha > 1 | alpha < 0) stop("alpha must be in [0, 1] (0 for ridge penalty, 1 for lasso penalty)")
+
+  # Check alpha value
+  if(alpha > 1 | alpha < 0)
+    stop("alpha must be in [0, 1] (0 for ridge penalty, 1 for lasso penalty)")
+
+  # Handle unpenalized variables efficiently
   if(is.null(unpenalized)){
-    unpenalized <- rep(FALSE, (nvars-1*intercept))
-    if(intercept) unpenalized <- c(TRUE, unpenalized)
-  }
-  else{
-    if(!is.vector(unpenalized)) stop("''unpenalized is not a vector")
+    unpenalized <- logical(nvars)
+    if(intercept) unpenalized[1] <- TRUE
+  } else {
+    if(!is.vector(unpenalized)) stop("'unpenalized' is not a vector")
     if(is.list(unpenalized)) stop("'unpenalized' can not be a list")
     if(is.factor(unpenalized)) stop("'unpenalized' can not be a factor")
+
     if(is.character(unpenalized)){
       temp_nms <- if(intercept) nms[-1] else nms
       unpenalized_id <- pmatch(unpenalized, temp_nms)
-      if(any(is.na(unpenalized_id))) stop(gettextf("the following names are not in colnames(X): %s", paste(unpenalized[is.na(unpenalized_id)], collapse = ", ")))
-      unpenalized <- sort(unpenalized_id)
-    }else unpenalized <- sort(unpenalized)
-    if(any(abs(unpenalized - round(unpenalized)) > .Machine$double.eps^0.5)) stop("some element of 'unpenalized' is not an integers")
-    if(any(unpenalized <= 0)) stop("some element of 'unpenalized' is smaller than zero")
-    if(any(unpenalized > (nvars-1*intercept))) stop("some element of 'unpenalized' is greater than the number of columns of the matrix 'X'")
-    temp <- rep(FALSE, (nvars-1*intercept))
-    temp[unpenalized] <- TRUE
-    if(intercept) temp <- c(TRUE, temp)
-    unpenalized <- temp
+      if(any(is.na(unpenalized_id)))
+        stop(gettextf("the following names are not in colnames(X): %s",
+                      paste(unpenalized[is.na(unpenalized_id)], collapse = ", ")))
+      unpenalized_ids <- sort(unpenalized_id)
+
+      # Create logical vector directly
+      temp <- logical(nvars - intercept)
+      temp[unpenalized_ids] <- TRUE
+      if(intercept) temp <- c(TRUE, temp)
+      unpenalized <- temp
+    } else {
+      # Validate numeric inputs
+      unpenalized <- sort(unpenalized)
+      if(any(abs(unpenalized - round(unpenalized)) > .Machine$double.eps^0.5))
+        stop("some element of 'unpenalized' is not an integer")
+      if(any(unpenalized <= 0))
+        stop("some element of 'unpenalized' is smaller than zero")
+      if(any(unpenalized > (nvars-1*intercept)))
+        stop("some element of 'unpenalized' is greater than the number of columns of the matrix 'X'")
+
+      # Create logical vector directly
+      temp <- logical(nvars - intercept)
+      temp[unpenalized] <- TRUE
+      if(intercept) temp <- c(TRUE, temp)
+      unpenalized <- temp
+    }
   }
-  
-  if(is.null(offset)) offset <- rep(0, nobs)
+
+  # Handle offset and weights efficiently
+  if(is.null(offset)) offset <- numeric(nobs)
+
   if(is.null(weights)){
-    weights <- as.double(rep(1, nobs))
-  }
-  else{
+    weights <- rep(1, nobs)
+  } else {
     if(!is.vector(weights)) stop("argument 'weights' is not a vector")
     if(is.list(weights)) stop("argument 'weights' can not be a list")
     if(is.factor(weights)) stop("argument 'weights' can not be a factor")
     if(is.character(weights)) stop("vector 'weights' can not be a character")
-    if(length(weights) != nobs) stop("the length of the vector 'weights' is not equal to ", sQuote(n))
+    if(length(weights) != nobs) stop("the length of the vector 'weights' is not equal to ", sQuote(nobs))
+
+    # Handle NaN weights more efficiently
     if(any(is.nan(weights))) weights[is.nan(weights)] <- 0
     if(all(weights == 0)) stop("all the entries of the vector 'weights' are equal to zero")
   }
-  if(is.character(family)) family <- get(family, mode="function", envir=parent.frame())
-  if(is.function(family)) family <- do.call(family, args=list(), envir=parent.frame())
+
+  # Process family object
+  if(is.character(family))
+    family <- get(family, mode="function", envir=parent.frame())
+  if(is.function(family))
+    family <- do.call(family, args=list(), envir=parent.frame())
   if(is.null(family$family)){
     print(family)
     stop("'family' not recognized!")
   }
+
   tempFamily <- family$family
   tempLink <- family$link
-  
+
+  # Configure control settings
   setting <- control
   if(setting$itmax < 0) stop("'itmax' should be a non-negative value")
+
+  # Handle mixing parameter
   if(setting$c[1] > 1) stop("'mixing parameter' should be fixed in (0,1) or estimated using a negative value")
   if(setting$c[1] < 0) {
     setting$c <- rep(1, nvars)
     setting$fix.c <- FALSE
-  } 
-  else {
+  } else {
     if(length(setting$c) != nvars) setting$c <- rep(setting$c[1], nvars)
     setting$fix.c <- TRUE
   }
+
+  # Validate gamma parameter
   if(setting$g < 0 | setting$g > 1) {
     warning("gamma parameter have to be set in (0,1). Default parameter is 0.5")
     setting$g <- .5
   }
-  if(tempFamily == "binomial") setting$sigma2 <- 1
-  if(tempFamily == "quasibinomial") setting$sigma2 <- -1
-  if(tempFamily == "poisson") setting$sigma2 <- 1
-  if(tempFamily == "quasipoisson") setting$sigma2 <- -1
-  
+
+  # Set sigma2 based on family
+  family_sigma <- c(binomial = 1, quasibinomial = -1, poisson = 1, quasipoisson = -1)
+  if(tempFamily %in% names(family_sigma)) {
+    setting$sigma2 <- family_sigma[tempFamily]
+  }
+
+  # Check link compatibility more efficiently
   okLinks <- c("identity", "logit", "log", "probit", "inverse")
-  indLink <- which(okLinks %in% tempLink)
-  if(!(tempLink %in% okLinks)) stop(gettextf("%s link not recognized", sQuote(tempLink)), domain = NA)
-  if(tempFamily == "gaussian" & !is.element(tempLink, c("identity")))
-    stop(gettextf("The %s family does not accept the link %s.\n  The accepted link is: 'identity'", sQuote(tempFamily), sQuote(tempLink)), domain=NA)
-  if(any(tempFamily == c("poisson", "quasipoisson")) & !is.element(tempLink, c("log")))
-    stop(gettextf("The %s family does not accept the link %s.\n  The accepted link is: 'log'", sQuote(tempFamily), sQuote(tempLink)), domain = NA)
-  if(any(tempFamily == c("binomial", "quasibinomial")) & !is.element(tempLink, c("logit", "probit")))
-    stop(gettextf("The %s family does not accept the link %s.\n  The accepted link are: 'logit' and 'probit'", sQuote(tempFamily), sQuote(tempLink)), domain=NA)
-  if(tempFamily == "Gamma" & !is.element(tempLink, c("log", "identity", "inverse")))
-    stop(gettextf("The %s family does not accept the link %s.\n  The accepted link are: 'log', 'inverse', 'identity'", sQuote(tempFamily), sQuote(tempLink)), domain=NA)
-  if(is.character(y) & all(tempFamily != c("binomial", "quasibinomial")))
-    stop(gettextf("The %s family does not accept a character as responce variable", sQuote(tempFamily)), domain=NA)
-  if(is.factor(y) & all(tempFamily != c("binomial", "quasibinomial")))
-    stop(gettextf("The %s family does not accept a factor as responce variable", sQuote(tempFamily)), domain=NA)
-  if(is.matrix(y) & all(tempFamily != c("binomial", "quasibinomial")))
-    stop(gettextf("The %s family does not accept a matrix as responce variable", sQuote(tempFamily)), domain=NA)
-  
-  ## initialize from family function. Makes y a vector in case of binomial, and possibly changes weights
-  ## Expects nobs to be defined, and creates n and mustart (neither used here)
-  ## Some cases expect to see things, so we set it up just to make it work
-  etastart <- 0; mustart <- NULL; start <- NULL
+  if(!(tempLink %in% okLinks))
+    stop(gettextf("%s link not recognized", sQuote(tempLink)), domain = NA)
+
+  # More concise link validation
+  family_link_map <- list(
+    gaussian = "identity",
+    binomial = c("logit", "probit"),
+    quasibinomial = c("logit", "probit"),
+    poisson = "log",
+    quasipoisson = "log",
+    Gamma = c("log", "identity", "inverse")
+  )
+
+  if(tempFamily %in% names(family_link_map)) {
+    valid_links <- family_link_map[[tempFamily]]
+    if(!(tempLink %in% valid_links)) {
+      stop(gettextf("The %s family does not accept the link %s.\n  The accepted link(s): %s",
+                    sQuote(tempFamily), sQuote(tempLink),
+                    paste(sQuote(valid_links), collapse = ", ")), domain = NA)
+    }
+  }
+
+  # Check response type compatibility
+  if((is.character(y) || is.factor(y) || is.matrix(y)) &&
+     !tempFamily %in% c("binomial", "quasibinomial")) {
+    stop(gettextf("The %s family does not accept a %s as response variable",
+                  sQuote(tempFamily), class(y)[1]), domain = NA)
+  }
+
+  # Initialize from family function
+  etastart <- 0
+  mustart <- NULL
+
+  # Handle initialization for different families
   if(tempFamily == "gaussian"){
     n <- rep.int(1, nobs)
     mustart <- y
-  }
-  if(tempFamily %in% c("binomial", "quasibinomial")){
+  } else if(tempFamily %in% c("binomial", "quasibinomial")) {
     if (NCOL(y) == 1) {
       if (is.factor(y)) y <- y != levels(y)[1L]
       n <- rep.int(1, nobs)
@@ -233,11 +435,11 @@ checkinput.islasso.path <- function(X, y, family, lambda, nlambda, lambda.min.ra
       if (any(y < 0 | y > 1)) stop("y values must be 0 <= y <= 1")
       mustart <- (weights * y + 0.5)/(weights + 1)
       m <- weights * y
-      if ("binomial" == "binomial" && any(abs(m - round(m)) > 0.001)) 
+      if (tempFamily == "binomial" && any(abs(m - round(m)) > 0.001))
         warning(gettextf("non-integer #successes in a %s glm!", "binomial"), domain = NA)
     }
     else if (NCOL(y) == 2) {
-      if ("binomial" == "binomial" && any(abs(y - round(y)) > 0.001)) 
+      if (tempFamily == "binomial" && any(abs(y - round(y)) > 0.001))
         warning(gettextf("non-integer counts in a %s glm!", "binomial"), domain = NA)
       n <- (y1 <- y[, 1L]) + y[, 2L]
       y <- y1 / n
@@ -245,34 +447,31 @@ checkinput.islasso.path <- function(X, y, family, lambda, nlambda, lambda.min.ra
       weights <- weights * n
       mustart <- (n * y + 0.5)/(n + 1)
     }
-    else stop(gettextf("for the '%s' family, y must be a vector of 0 and 1's\nor a 2 column matrix where col 1 is no. successes and col 2 is no. failures", "binomial"), domain = NA)
-  }
-  if(tempFamily %in% c("poisson", "quasipoisson")){
+    else stop(gettextf("for the '%s' family, y must be a vector of 0 and 1's\nor a 2 column matrix where col 1 is no. successes and col 2 is no. failures",
+                       "binomial"), domain = NA)
+  } else if(tempFamily %in% c("poisson", "quasipoisson")) {
     if (any(y < 0)) stop("negative values not allowed for the 'Poisson' family")
     n <- rep.int(1, nobs)
     mustart <- y + 0.1
-  }
-  if(tempFamily == "Gamma"){
+  } else if(tempFamily == "Gamma") {
     if (any(y <= 0)) stop("non-positive values not allowed for the 'Gamma' family")
     n <- rep.int(1, nobs)
     mustart <- y
   }
-  
-  # eval(family$initialize)
-  ##
-  ## Just in case this was not done in initialize()
-  y <- drop(y)  # we don't like matrix responses
-  
+
+  # Ensure y is a vector (not a matrix)
+  y <- drop(y)
+
+  # Lambda sequence generation
   if(is.null(lambda)) {
     lmax <- get_start(X, y, weights, family, intercept, offset, unpenalized, alpha)$lambda_max
-    # lmax <- max(abs(crossprod(x, y))) * 1.01 * n
     lmin <- lmax * lambda.min.ratio * 1.01
     lambda <- exp(seq(log(lmin), log(lmax), length.out = nlambda))
-  } 
-  else {
+  } else {
     nlambda <- length(lambda)
   }
-  
+
+  # Return prepared data
   return(list(
     y = y,
     X = X,
@@ -296,55 +495,73 @@ checkinput.islasso.path <- function(X, y, family, lambda, nlambda, lambda.min.ra
 }
 
 startpoint.islasso.path <- function(X, y, lambda, alpha, weights, offset, mustart, family, intercept, setting) {
-  nobs <- nrow(X); nvars <- ncol(X)
-  
-  if(family$family %in% c("gaussian", "binomial", "quasibinomial", "poisson", "quasipoisson")){
-    tempFamily <-  family$family
-    if(tempFamily == "quasibinomial") tempFamily <- "binomial"
-    if(tempFamily == "quasipoisson") tempFamily <- "poisson"
+  nobs <- nrow(X)
+  nvars <- ncol(X)
+
+  # Determine tempFamily efficiently
+  tempFamily <- family$family
+  if(tempFamily %in% c("quasibinomial", "quasipoisson")) {
+    tempFamily <- sub("quasi", "", tempFamily)
   }
-  else tempFamily <- family
-  
+
+  # Initialize beta vector
   if((nvars - intercept) < 2){
     est <- rep(0.1, nvars)
-  }
-  else{
-    x <- as.matrix(X)
+  } else {
+    # Copy data to avoid modifying original
+    x <- X
     y2 <- y
     weights2 <- weights
+
+    # Special handling for binomial family
     if(family$family %in% c("binomial", "quasibinomial")) {
       y2 <- weights * cbind(1 - y, y)
-      weights2 <- rep.int(1, nobs)
+      weights2 <- rep(1, nobs)
     }
-    if(intercept) x <- x[, -1]
+
+    # Remove intercept for standardization
+    if(intercept) x <- x[, -1, drop = FALSE]
+
+    # Standardize predictors if needed
     if(setting$stand) {
       x_mean <- colMeans(x)
       x_centered <- sweep(x, 2, x_mean, "-")
-      x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
+      # More efficient variance calculation
+      x_sd <- sqrt(colSums(x_centered^2) / nobs)
       x <- sweep(x_centered, 2, x_sd, "/")
     }
-    obj <- suppressWarnings(glmnet(x = x, y = y2, family = tempFamily, alpha = alpha, weights = weights2,
-                                   standardize = FALSE, intercept = intercept, offset = offset))#, 
-                                   #nlambda = ifelse(length(lambda) == 1, 100L, length(lambda))))
-    # if(length(lambda) != 1) lambda <- rev(obj$lambda) * nobs
+
+    # Use glmnet for initial estimates (much faster than direct calculation)
+    if(tempFamily != "Gamma") {
+      obj <- suppressWarnings(glmnet(x = x, y = y2, family = tempFamily, alpha = alpha,
+                                     weights = weights2, standardize = FALSE,
+                                     intercept = intercept, offset = offset))
+    } else {
+      obj <- suppressWarnings(glmnet(x = x, y = y2, family = family, alpha = alpha,
+                                     weights = weights2, standardize = FALSE,
+                                     intercept = intercept, offset = offset))
+    }
+
+    # Extract coefficients at appropriate lambda
     est <- as.vector(coef(obj, s = max(min(obj$lambda), min(lambda) / nobs)))
-    # if(setting$stand) {
-    #   x_mean <- colMeans(x)
-    #   x_centered <- sweep(x, 2, x_mean, "-")
-    #   x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / n))
-    #   est[1] <- est[1] + sum(x_mean / x_sd * est[1])
-    #   est[-1] <- x_sd * est[-1]
-    # }
+
+    # Remove intercept if needed
     if(!intercept) est <- est[-1]
   }
+
+  # Calculate interval and other necessary values
   interval <- range(lambda)
-  
-  covar <- diag(.01, nrow = nvars, ncol = nvars)
+
+  # Initialize covariance matrix
+  covar <- diag(0.01, nrow = nvars, ncol = nvars)
   se <- sqrt(diag(covar))
+
+  # Calculate linear predictor, fitted values and residuals
   eta <- family$linkfun(mustart) + offset
   mu <- family$linkinv(eta)
   residuals <- (y - mu) / family$mu.eta(eta)
-  
+
+  # Return list of starting values
   return(list(
     fam = family$family,
     lambda = lambda,
@@ -358,626 +575,300 @@ startpoint.islasso.path <- function(X, y, lambda, alpha, weights, offset, mustar
   ))
 }
 
-islasso.path.fit.glm <- function(prep, start, lambda, fam, link){
-  
-  cov.unscaled <- start$covar
-  se <- start$se
-  b <- start$beta
-  if(any(b == 0)) b[b == 0] <- 1E-5
-  
-  setting <- prep$setting
-  c <- setting$c
-  fix.c <- setting$fix.c
-  est.c <- !fix.c
-  tol <- setting$tol
-  maxIter <- setting$itmax
-  trace <- setting$trace
-  sigma2 <- setting$sigma2
-  g <- setting$g
-  nlambda <- length(lambda)
-  alpha <- prep$alpha
-  nvars <- prep$nvars
-  nobs <- prep$nobs
-  intercept <- prep$intercept
-  X <- x <- prep$X
-  if(setting$stand) {
-    x_mean <- colMeans(x)
-    if(intercept) x_mean[1] <- 0
-    x_centered <- sweep(x, 2, x_mean, "-")
-    x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
-    if(intercept) x_sd[1] <- 1
-    x <- sweep(x_centered, 2, x_sd, "/")
-  }
+islasso.path.fit.glm <- function(prep, start, lambda, fam, link) {
+  # --- Estrazione e preparazione ---
+  X <- prep$X
+  storage.mode(X) <- "double"
   y <- prep$y
-  weights <- prep$weights
-  offset <- prep$offset
-  unpenalized <- prep$unpenalized
-  family <- prep$family
-  
-  storage.mode(x) <- "double"
   storage.mode(y) <- "double"
-  storage.mode(intercept) <- "integer"
-  storage.mode(nobs) <- "integer"
-  storage.mode(nvars) <- "integer"
-  storage.mode(b) <- "double"
-  storage.mode(se) <- "double"
-  storage.mode(cov.unscaled) <- "double"
-  storage.mode(lambda) <- "double"
-  storage.mode(alpha) <- "double"
+  offset <- prep$offset
   storage.mode(offset) <- "double"
+  weights <- prep$weights
   storage.mode(weights) <- "double"
-  eta <- start$eta
-  storage.mode(eta) <- "double"
-  mu <- start$mu
-  storage.mode(mu) <- "double"
-  res <- start$residuals
-  storage.mode(res) <- "double"
-  
+  family <- prep$family
+  unpenalized <- prep$unpenalized
+  intercept <- as.integer(prep$intercept)
+  nvars <- as.integer(prep$nvars)
+  nobs <- as.integer(prep$nobs)
+  alpha <- as.double(prep$alpha)
+  tempFamily <- prep$tempFamily
+
+  b <- start$beta
+  b[b == 0] <- 1e-5
+  storage.mode(b) <- "double"
+  se <- start$se
+  storage.mode(se) <- "double"
+  cov.unscaled <- start$covar
+  storage.mode(cov.unscaled) <- "double"
+
+  setting <- prep$setting
+  c <- as.double(setting$c)
   storage.mode(c) <- "double"
-  storage.mode(est.c) <- "integer"
-  storage.mode(trace) <- "integer"
-  adaptive <- setting$adaptive
-  storage.mode(adaptive) <- "integer"
-  stand <- setting$stand
-  storage.mode(setting$stand) <- "integer"
-  h <- as.double(1)
-  storage.mode(maxIter) <- "integer"
-  storage.mode(tol) <- "double"
-  storage.mode(sigma2) <- "double"
-  
-  outputInfo <- matrix(NA, ncol = 7, nrow = nlambda)
-  outputGoF <- matrix(NA, ncol = 6, nrow = nlambda)
-  outputCoef <- matrix(NA, ncol = nvars, nrow = nlambda)
-  outputSE <- matrix(NA, ncol = nvars, nrow = nlambda)
-  outputWeight <- matrix(NA, ncol = nvars, nrow = nlambda)
+  est.c <- as.integer(!setting$fix.c)
+  tol <- as.double(setting$tol)
+  maxIter <- as.integer(setting$itmax)
+  trace <- as.integer(setting$trace)
+  sigma2 <- as.double(setting$sigma2)
+  g <- as.double(setting$g)
+  adaptive <- as.integer(setting$adaptive)
+  stand <- as.integer(setting$stand)
+
+  storage.mode(lambda) <- "double"
+  nlambda <- length(lambda)
+
+  gradient <- double(nvars)
+
+  # --- Output containers ---
+  outputInfo <- matrix(NA, nrow = nlambda, ncol = 7)
+  outputGoF <- matrix(NA, nrow = nlambda, ncol = 6)
+  outputCoef <- matrix(NA, nrow = nlambda, ncol = nvars)
+  outputSE <- matrix(NA, nrow = nlambda, ncol = nvars)
+  outputWeight <- matrix(NA, nrow = nlambda, ncol = nvars)
+  outputGrad <- matrix(NA, nrow = nlambda, ncol = nvars)
   outputLinPred <- outputFitted <- outputResid <- NULL
   CONV <- integer(nlambda)
-  
-  # extract family functions
-  variance <- family$variance
+
+  # --- Funzioni famiglia ---
   linkinv <- family$linkinv
+  variance <- family$variance
   dev.resids <- family$dev.resids
-  aic <- family$aic
+  aic_fun <- family$aic
   mu.eta <- family$mu.eta
-  linkfun <- family$linkfun
-  
-  # if(setting$stand) {
-  #   x_mean <- colMeans(x)
-  #   x_centered <- sweep(x, 2, x_mean, "-")
-  #   x_sd <- apply(x_centered, 2, function(x) sqrt(sum(x^2) / nobs))
-  #   if(intercept) {
-  #     x_mean[1] <- 0.0
-  #     x_sd[1] <- 1.0
-  #   }
-  # }
-  
-  if (trace == 2L) cat('\r\n\r\n    Ind|Max \t      lambda \t    df \t\t     phi \t Iter \t Error')
+
+  # --- Tracciamento ---
+  if (trace == 2L) cat("\n\n   Ind|Max  \tlambda     \tdf        \tphi      \tIter\tError")
   if (trace > 0) time0 <- Sys.time()
-  
+
   for (rep in seq_len(nlambda)) {
-    l <- lambda[rep] * (!unpenalized)
-    if(setting$stand) l <- l / x_sd
-    
-    active <- as.vector(abs(b) > 1E-8)
-    if(sum(active) == 0 | (intercept && all(which(active) == 1))) break
-    
-    # if(setting$stand) {
-    #   b[active][1] <- b[active][1] + sum(x_mean[active][-1] / x_sd[active][-1] * b[active][-1])
-    #   b[active][-1] <- x_sd[active][-1] * b[active][-1]
+    lmbd <- lambda[rep] * (!unpenalized)
+
+    active <- abs(b) > 1e-8
+
+    if (sum(active) == 0 || (intercept && all(which(active) == 1))) break
+
+    # if (tempFamily == "gaussian") {
+    #   temp.fit <- islasso_cpp(
+    #     X = X[, active, drop = FALSE], y = y, lambda = lmbd[active], alpha = alpha,
+    #     theta = b[active], se = se[active], covar = cov.unscaled[active, active], sigma2 = sigma2,
+    #     pi = c[active], weights = weights, offset = offset,
+    #     estpi = est.c, stand = stand, intercept = intercept,
+    #     itmax = maxIter, itmaxse = maxIter,
+    #     tol = tol, adaptive = adaptive, trace = 0L
+    #   )
+    # } else {
+    #   temp.fit <- islasso_glm_cpp(
+    #     X = X[, active, drop = FALSE], y = y, lambda = lmbd[active], alpha = alpha,
+    #     theta = b[active], se = se[active], covar = cov.unscaled[active, active], sigma2 = sigma2,
+    #     pi = c[active], weights = weights, offset = offset, fam = fam, link = link,
+    #     estpi = est.c, stand = stand, intercept = intercept,
+    #     itmax = maxIter, itmaxse = maxIter,
+    #     tol = tol, adaptive = adaptive, trace = 0L
+    #   )
     # }
-    
-    #temp.fit <- islasso.path.fitter2(b[active], se[active], c[active], fix.c, l, alpha, x[, active, drop = FALSE], y, weights, sigma2,
-    #                                cov.unscaled[active, active], nobs, intercept, tol, unpenalized[active], offset, family, maxIter)
-    
-    if(prep$tempFamily == "gaussian") {
-      # if(setting$sandwich) {
-        temp.fit <- .Fortran(C_islasso, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
-                             cov = cov.unscaled[active, active], lambda = l[active], alpha = alpha, pi = c[active], estpi = est.c,
-                             h = h, itmax = maxIter, itmaxse = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
-                             stand = 0L, intercept = intercept, eta = eta, mu = mu, res = res, dev = double(1), weights = weights,
-                             hi = double(sum(active)), edf = double(1), grad = double(sum(active)))
-      # }
-      # else {
-      #   temp.fit <- .Fortran(C_islasso3, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
-      #                        cov = cov.unscaled[active, active], lambda = l * (!unpenalized[active]), alpha = alpha, pi = c[active], estpi = est.c,
-      #                        h = h, itmax = maxIter, itmaxse = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
-      #                        stand = stand, intercept = intercept, eta = eta, mu = mu, res = res, dev = double(1), weights = weights,
-      #                        hi = double(sum(active)), edf = double(1), grad = double(sum(active)))
-      # }
+    #
+    # temp.fit <- lapply(temp.fit, drop)
+
+    temp.fit <- if (tempFamily == "gaussian") {
+      .Fortran(C_islasso, X = X[, active, drop = FALSE], y = y, n = nobs, p = sum(active), theta = b[active], se = se[active],
+               cov = cov.unscaled[active, active], lambda = lmbd[active], alpha = alpha, pi = c[active], estpi = est.c,
+               itmax = maxIter, itmaxse = maxIter, tol = tol, sigma2 = sigma2, trace = 0L,
+               adaptive = adaptive, offset = offset, conv = integer(1), stand = stand,
+               intercept = intercept, eta = y, mu = y, varmu = y, mu_eta_val = y, w = y, res = y, dev = double(1),
+               weights = weights, hi = b[active], edf = double(1), xtw = matrix(0.0, nrow = sum(active), ncol = nobs),
+               xtx = cov.unscaled[active, active], grad = b[active], hess = cov.unscaled[active, active], invH = cov.unscaled[active, active], pen = b[active])
+    } else {
+      .Fortran(C_islasso_glm, X = X[, active, drop = FALSE], y = y, n = nobs, p = sum(active), theta = b[active], se = se[active],
+               cov = cov.unscaled[active, active], lambda = lmbd[active], alpha = alpha, pi = c[active], estpi = est.c,
+               itmax = maxIter, itmaxse = maxIter, tol = tol, sigma2 = sigma2, trace = 0L,
+               adaptive = adaptive, offset = offset, conv = integer(1), stand = stand,
+               intercept = intercept, eta = y, mu = y, varmu = y, mu_eta_val = y, w = y, res = y, dev = double(1),
+               weights = weights, hi = b[active], edf = double(1), xtw = matrix(0.0, nrow = sum(active), ncol = nobs),
+               xtx = cov.unscaled[active, active], grad = b[active], hess = cov.unscaled[active, active], invH = cov.unscaled[active, active], pen = b[active], fam = fam, link = link)
     }
-    else{
-      # if(setting$sandwich) {
-        temp.fit <- .Fortran(C_islasso_glm, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
-                             cov = cov.unscaled[active, active], lambda = l[active], alpha = alpha, pi = c[active], estpi = est.c,
-                             h = h, itmax = maxIter, itmaxse = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
-                             stand = 0L, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights,
-                             hi = double(sum(active)), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(sum(active)))
-      # }
-      # else{
-      #   temp.fit <- .Fortran(C_islasso_glm2, X = x[, active, drop = FALSE], y = y, n = nobs, p = sum(active), ntheta = b[active], se = se[active],
-      #                        cov = cov.unscaled[active, active], lambda = l * (!unpenalized[active]), alpha = alpha, pi = c[active], estpi = est.c,
-      #                        h = h, itmax = maxIter, itmaxse = maxIter, tol = tol, phi = sigma2, trace = 0L, adaptive = adaptive, offset = offset, conv = integer(1),
-      #                        stand = stand, intercept = intercept, eta = eta, mu = mu, dev = double(1), weights = weights,
-      #                        hi = double(sum(active)), edf = double(1), fam = as.integer(fam), link = as.integer(link), grad = double(sum(active)))  
-      # }
-    }
+
     CONV[rep] <- conv <- temp.fit$conv
-    if(conv > 1) next
-               
+    if (conv > 1) next
+
     iter <- temp.fit$itmax
     err <- temp.fit$tol
-    
-    b[active] <- temp.fit$ntheta  
+
+    b[active] <- temp.fit$theta
     se[active] <- temp.fit$se
     c[active] <- temp.fit$pi
     cov.unscaled[active, active] <- temp.fit$cov
-        
-    beta <- b
-    covar <- cov.unscaled
-    if(setting$stand) {
-      l <- l * x_sd
-      beta <- beta / x_sd
-      covar <- covar / outer(x_sd, x_sd, "*")
-      if(intercept) {
-        beta[1] <- beta[1] - sum(beta * x_mean)
-        covar[1, ] <- covar[1, ] - x_mean %*% covar
-        covar[, 1] <- covar[1, ]
-        covar[1, 1] <- covar[1, 1] - drop(covar[1, ] %*% x_mean)
-      } 
-    }
-    s2 <- temp.fit$phi
-    std.errs <- sqrt(s2 * diag(covar))
-    eta <- drop(X %*% beta + offset)
-    mu <- linkinv(eta)
-    varmu <- variance(mu)
-    mu.eta.val <- mu.eta(eta)
-    w <- (weights * mu.eta.val^2) / varmu
-    residuals <- (y - mu) / mu.eta.val
-    
-    XtW <- t(w * X)
-    XtX <- XtW %*% X
-    H <- .Fortran(C_hessian, beta, std.errs, l, XtX, c, nvars, hess = XtX, alpha)$hess
-    invH <- .Fortran(C_inv, nvars, H, invA = H, integer(1))$invA
-    
-    hi <- temp.fit$hi
+    gradient[active] <- temp.fit$grad
+
+    # eta <- drop(X %*% b + offset)
+    eta <- temp.fit$eta
+    # mu <- linkinv(eta)
+    mu <- temp.fit$mu
+    # mu.eta.val <- mu.eta(eta)
+    mu.eta.val <- temp.fit$mu_eta_val
+    # varmu <- variance(mu)
+    varmu <- temp.fit$varmu
+    # w <- (weights * mu.eta.val^2) / varmu
+    w <-  temp.fit$w
+    # residuals <- (y - mu) / mu.eta.val
+    residuals <- temp.fit$res
+
+    # XtW <- t(w * X)
+    # XtW <- temp.fit$xtw
+    # XtX <- XtW %*% X
+    # XtX <- temp.fit$xtx
+
+    # H <- compute_hessian(XtX, b, se, lmbd, c, alpha, 2L)
+    # H <- .Fortran(C_hessian, theta = b, se = se, lambda = lmbd, xtx = XtX, pi = c, p = nvars, hess = XtX, alpha = alpha)$hess
+    # H <- temp.fit$hess
+    # invH <- inv_sym_matrix(H)
+    # invH <- .Fortran(C_inv_lapack, n = nvars, a = H, ainv = H, info = integer(1), ipiv = integer(nvars), work = double(nvars*nvars))$ainv
+    # invH <- temp.fit$invH
+
     df <- temp.fit$edf
-    
-    # hi <- diag(invH %*% XtX)
-    # df <- sum(hi)
-    
     dev <- sum(dev.resids(y, mu, weights))
-    # s2 <- if(prep$tempFamily %in% c("binomial", "poisson")) 1.0 else sum((w * residuals^2)[w > 0]) / (nobs - df)
-    
-    # s2 <- temp.fit$phi
-    # hi <- temp.fit$hi
-    # df <- temp.fit$edf
-    
-    # tau <- 1
-    # ll <- n * log(2 * pi * tau) + e / tau
-    # eta <- temp.fit$eta
-    # mu <- temp.fit$mu
-    ll <- dev <- sum(dev.resids(y, mu, weights))
-    if ((nobs > nvars) & (prep$tempFamily %in% c("gaussian", "binomial", "poisson", "Gamma"))) 
-      ll <- family$aic(y, prep$n, mu, weights, dev)
-    
-    aic <- ll  + 2 * df
+    ll <- dev
+    if (nobs > nvars && tempFamily %in% c("gaussian", "binomial", "poisson", "Gamma"))
+      ll <- aic_fun(y, prep$n, mu, weights, dev)
+
+    # --- Misure di bontà ---
+    aic <- ll + 2 * df
     bic <- ll + log(nobs) * df
-    aicc <- ll + 2 *  nobs * df * (df + 1) / (nobs - df - 1) + 2 * df
+    aicc <- ll + 2 * nobs * df * (df + 1) / (nobs - df - 1) + 2 * df
     ebic <- ll + (log(nobs) + 2 * g * log(nvars)) * df
-    gcv <- ll / ((1 - df / nobs) ^ 2)
+    gcv <- ll / ((1 - df / nobs)^2)
     gic <- ll + log(log(nobs)) * log(nvars) * df
-    
+
+    # --- Tracciamento progressivo ---
     if (trace == 2L) {
-      cat(
-        '\r\n', formatC(rep, format = "d", width = 4, digits = 0), '|',
-        formatC(nlambda, format = "d", width = 4, digits = 0), '\t ',
-        formatC(lambda[rep], format = "f", width = 10, digits = 4), '\t',
-        formatC(df, format = "f", width = 10, digits = 4), '\t',
-        formatC(s2, format = "f", width = 10, digits = 4), '\t',
-        formatC(iter, format = "d", width = 4, digits = 0), '\t',
-        formatC(err, format = "f", width = 5 + 3, digits = 7 + 1), '\t'#,
-        # if(conv > 1) "" else "<--"
-        #formatC(iter2, format = "d", width = 4, digits = 0), '\t',
-        #formatC(err2, format = "f", width = 5 + 3, digits = 7 + 1)
-      )
-    } 
-    else{
-      if(trace == 1L) cat('\r ', rep, '|', nlambda, rep(' ', 20))
+      cat(sprintf("\n%4d|%4d\t%10.4f\t%10.4f\t%10.4f\t%4d\t%9.6f",
+                  rep, nlambda, lambda[rep], df, temp.fit$sigma2, iter, err))
+    } else if (trace == 1L) {
+      cat("\r", rep, "|", nlambda, rep(" ", 20))
     }
-    
-    outputInfo[rep, ] <- c(lambda[rep], df, s2, dev, -ll/2, iter, err)
-    outputGoF[rep, ] <- c(aic, bic, aicc, ebic, gcv, gic)
-    outputCoef[rep, ] <- c(beta)
-    outputSE[rep, ] <- c(std.errs)
-    outputWeight[rep, ] <- c(c)
-    
+
+    # --- Output singolo step ---
+    outputInfo[rep, ]   <- c(lambda[rep], df, temp.fit$sigma2, dev, -ll/2, iter, err)
+    outputGoF[rep, ]    <- c(aic, bic, aicc, ebic, gcv, gic)
+    outputCoef[rep, ]   <- b
+    outputSE[rep, ]     <- se
+    outputWeight[rep, ] <- c
+    outputGrad[rep, ] <- gradient
+
     outputLinPred <- rbind(outputLinPred, eta)
-    outputFitted <- rbind(outputFitted, mu)
-    outputResid <- rbind(outputResid, residuals)
+    outputFitted  <- rbind(outputFitted, mu)
+    outputResid   <- rbind(outputResid, residuals)
   }
-  if(any(id <- CONV == 1)){
-    outputInfo <- outputInfo[!id, ]
-    outputGoF <- outputGoF[!id, ]
-    outputCoef <- outputCoef[!id, ]
-    outputSE <- outputSE[!id, ]
-    outputWeight <- outputWeight[!id, ]
-    
-    outputLinPred <- outputLinPred[!id, ]
-    outputFitted <- outputFitted[!id, ]
-    outputResid <- outputResid[!id, ]
-  }
-  
-  colnames(outputInfo) <- c('lambda', "df", "phi", "deviance", "logLik", 
-                            "iter", "err")
-  colnames(outputGoF) <- c('AIC', 'BIC', 'AICc', "eBIC", 'GCV', "GIC")
-  colnames(outputCoef) <- prep$nms
-  colnames(outputSE) <- prep$nms
+
+  # --- Rimuovi modelli non convergenti ---
+  valid <- CONV != 1L
+  outputInfo     <- outputInfo[valid, , drop = FALSE]
+  outputGoF      <- outputGoF[valid, , drop = FALSE]
+  outputCoef     <- outputCoef[valid, , drop = FALSE]
+  outputSE       <- outputSE[valid, , drop = FALSE]
+  outputWeight   <- outputWeight[valid, , drop = FALSE]
+  outputGrad     <- outputGrad[valid, , drop = FALSE]
+  outputLinPred  <- outputLinPred[valid, , drop = FALSE]
+  outputFitted   <- outputFitted[valid, , drop = FALSE]
+  outputResid    <- outputResid[valid, , drop = FALSE]
+
+  # --- Etichette ---
+  colnames(outputInfo)   <- c("lambda", "df", "phi", "deviance", "logLik", "iter", "err")
+  colnames(outputGoF)    <- c("AIC", "BIC", "AICc", "eBIC", "GCV", "GIC")
+  colnames(outputCoef)   <- prep$nms
+  colnames(outputSE)     <- prep$nms
   colnames(outputWeight) <- prep$nms
-  
-  # outputLinPred <- t(tcrossprod(x, na.omit(outputCoef)))
-  # outputFitted <- family$linkinv(outputLinPred)
-  # outputResid <- (rep(y, each = nrow(outputFitted)) - outputFitted) / family$mu.eta(outputFitted)
+  colnames(outputGrad)   <- prep$nms
 
-  if (trace > 0) cat('\n\n Executed in ', Sys.time() - time0, '(s) \n')
-  output <- list(Coef = na.omit(outputCoef), SE = na.omit(outputSE), Residuals = outputResid, 
-                 Fitted.values = outputFitted, Info = na.omit(outputInfo), GoF = na.omit(outputGoF), 
-                 Linear.predictors = outputLinPred, prior.weights = weights, Weight = na.omit(outputWeight), 
-                 y = y, model = NULL, call = match.call(), family = family, formula = formula, terms = NULL,
-                 data = NULL, offset = offset, control = NULL, contrasts = NULL, xlevels = NULL, alpha = alpha,
-                 Input = list(n = nobs, p = nvars, intercept = intercept, unpenalized = unpenalized))
-  
-  return(output)
+  if (trace > 0) cat("\n\n Executed in", Sys.time() - time0, "\n")
+
+  list(
+    Coef = na.omit(outputCoef), SE = na.omit(outputSE), Residuals = outputResid,
+    Fitted.values = outputFitted, Info = na.omit(outputInfo), GoF = na.omit(outputGoF),
+    Linear.predictors = outputLinPred, prior.weights = weights, Weight = na.omit(outputWeight),
+    Gradient = na.omit(outputGrad), y = y, model = NULL, call = match.call(), family = family, formula = formula, terms = NULL,
+    data = NULL, offset = offset, control = NULL, contrasts = NULL, xlevels = NULL, alpha = alpha,
+    Input = list(n = nobs, p = nvars, intercept = intercept, unpenalized = unpenalized)
+  )
 }
 
-islasso.path.fitter2 <- function(b, se, c, fix.c, l, alpha, x, y, weights, sigma2, 
-                                 cov.unscaled, n, intercept, tol, unpenalized, offset, 
-                                 family, maxIter) {
-  
-  fn1 <- function(b, s = 1, c = .5, alpha, unpenalized) {
-    lb <- length(b)
-    bsc <- (b / s)
-    r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, .00001) - 1)) / b + (1 - alpha)
-    if(any(unpenalized)) r[unpenalized] <- 0
-    if (length(r) > 1) {
-      r <- diag(as.vector(r), nrow = lb, ncol = lb)
-    }
-    return(r)
-  }
-  fn2 <- function (b, s = 1, c = .5, alpha, unpenalized) {
-    lb <- length(b)
-    bsc <- (b / s)
-    r <- 2 * alpha *(c * dnorm(bsc, 0, 1) + (1 - c) * dnorm(bsc, 0, .00001)) / s + (1 - alpha)
-    r[is.nan(r)] <- 0
-    if(any(unpenalized)) r[unpenalized] <- 0
-    if (length(r) > 1) {
-      r <- diag(as.vector(r), nrow = lb, ncol = lb)
-    }
-    return(r)
-  }
-  # fn0 <- function(x, y, b, s = 1, c = .5, lambda, alpha, unpenalized, family, offset, weights) {
-  #   eta <- x %*% b + offset
-  #   mu <- family$linkinv(eta)
-  #   v <- family$variance(mu)
-  #   m.e <- family$mu.eta(eta)
-  #   r <- y - mu
-  #   rv <- r / v * m.e * weights
-  #   grad <- drop(t(rv) %*% x)
-  # 
-  #   bsc <- (b / s)
-  #   # grad <- crossprod(x, y - drop(x %*% b))
-  #   r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) + (1 - alpha) * b
-  #   if(any(unpenalized)) r[unpenalized] <- 0
-  #   return(- grad + lambda * r)
-  # }
-  # armijo <- function(x, y, b, se, c, l, alpha, unpenalized, family, offset, weights, cov.unscaled, cov.new, h = 1, s2){
-  #   grad0 <- drop(crossprod(fn0(x, y, b, se, c, l, alpha, unpenalized, family, offset, weights)))
-  #   grad.new <- .Machine$double.xmax
-  #   while(grad.new > grad0 & h > .1){
-  #     covar <- cov.unscaled + h * (cov.new - cov.unscaled)
-  #     cov.scaled <- s2 * covar
-  #     se <- sqrt(diag(cov.scaled))
-  #     grad.new <- drop(crossprod(fn0(x, y, b, se, c, l, alpha, unpenalized, family, offset, weights)))
-  #     h <- .5 * h
-  #   }
-  #   return(list(cov.unscaled = covar, cov.scaled = cov.scaled, se = se, grad = grad.new, h = 2 * h))
-  # }
-  
-  conv <- 0L
-  iter <- iter2 <- 1
-  err2 <- 1
-  tmp <- b
-  tmp2 <- se
-  err.old <- 1
-  s2 <- sigma2
-
-  eta <- drop(x %*% b) + offset
-  mu <- family$linkinv(eta)
-  varmu <- family$variance(mu)
-  mueta <- family$mu.eta(eta)
-  res <- (y - mu) / mueta
-  
-  while(err2 > (tol*10)) {
-    err <- 1
-
-    if(!fix.c) c <- 2 * binomial()$linkinv(abs(b / se)) - 1
-    z <- (eta - offset) + res
-    w <- weights * (mueta^2) / varmu
-    Xw <- x * w
-    XtX <- crossprod(Xw, x)
-    XtY <- crossprod(Xw, z)
-    
-    while (err > tol) {
-      inV <- XtX + l * fn1(b = b, s = se, c = c, alpha = alpha, unpenalized = unpenalized)
-      #inV <- try(chol2inv(chol(inV)), silent = TRUE)
-      b <- qr.solve(inV, XtY)
-      if(inherits(inV, "try-error")) {
-        # b <- tmp 
-        err <- err.old
-        conv <- 1L
-        warning(paste0("XtX + l*P' not invertible at lambda ", l, ". Safe exit!"))
-        break()
-      }
-      #b <- inV %*% XtY
-      
-      err.old <- err <- max(abs(tmp - b))
-      # if(err <= 10 ^ -(digit + 0)) print(data.frame(it = iter, err = err, t(b[1:10])))
-      tmp <- b
-      iter <- iter + 1
-      if(iter > maxIter) break
-    }
-    if(conv == 1) break()
-    
-    eta <- drop(x %*% b) + offset
-    mu <- family$linkinv(eta)
-    varmu <- family$variance(mu)
-    mueta <- family$mu.eta(eta)
-    res <- (y - mu) / mueta
-    e <- sum(weights * (res^2))
-    # e <- sum(weights * ((y - mu)^2))
-    inVg <- XtX + l * fn2(b = b, s = se, c = c, alpha = alpha, unpenalized = unpenalized)
-    invH <- chol2inv(chol(inVg))
-    tempMat <- invH %*% XtX
-    hi <- diag(tempMat)
-    df <- sum(hi)
-    if(sigma2 <= 0) s2 <- e / (n - df)
-    
-    cov.new <- tempMat %*% invH
-    
-    # temp.covar <- armijo(x, y, b, se, c, l, alpha, unpenalized, family, offset, weights, cov.unscaled, cov.new, h = 1, s2)
-    # cov.unscaled <- temp.covar$cov.unscale
-    # cov.scaled <- temp.covar$cov.scale
-    # se <- temp.covar$se
-    
-    # temp.covar <- list(h = .25, grad = drop(crossprod(fn0(x, y, b, se, c, l, alpha, unpenalized, family, offset, weights))),
-    #                    n.frob = norm(cov.new - cov.unscaled, "F"))
-    cov.unscaled <- cov.unscaled + .1 * (cov.new - cov.unscaled)
-    cov.scaled <- s2 * cov.unscaled
-    se <- sqrt(diag(cov.scaled))
-    
-    err2 <- max(abs(tmp2 - se))
-    
-    # print(data.frame(it = iter2, err = err, err2 = err2, s2 = s2, df = df, e = e))
-    # print(data.frame(it = iter2, err = err, err2 = err2, s2 = s2, df = df, e = e,
-    #                  h = temp.covar$h, grad = temp.covar$grad, n.frob = temp.covar$n.frob))
-    tmp2 <- se
-    iter2 <- iter2 + 1
-    if(iter2 > maxIter) break
-  }
-  
-  list(b = b, se = se, c = c, cov.unscaled = cov.unscaled, iter = iter, 
-       err = err, iter2 = iter2, err2 = err2,  e = e, s2 = s2, hi = hi, 
-       df = df, conv = conv, eta = eta, mu = mu, res = res)
-}
-
-GoF.islasso.path <- function(object, plot = TRUE, ...){
-  lambda.seq <- object$Info[,"lambda"]
+#' Select Optimal Lambda via Goodness-of-Fit Criteria
+#'
+#' Extracts the tuning parameter \code{lambda} minimizing multiple information criteria from a fitted \code{\link{islasso.path}} object.
+#' Supported criteria include AIC, BIC, AICc, eBIC, GCV, and GIC.
+#'
+#' @param object A fitted model of class \code{"islasso.path"}.
+#' @param plot Logical. If \code{TRUE} (default), displays plots for each criterion over the lambda path.
+#' @param ... Additional arguments passed to lower-level plotting or diagnostic methods.
+#'
+#' @details
+#' This function identifies the optimal regularization parameter \code{lambda} by minimizing various information-based selection criteria.
+#' Degrees of freedom are computed as the trace of the hat matrix, which may be fractional under induced smoothing.
+#' This provides a robust alternative to cross-validation, especially in high-dimensional settings.
+#'
+#' @return A list with components:
+#' \item{gof}{Matrix of goodness-of-fit values across lambda values.}
+#' \item{minimum}{Index positions of the minimum for each criterion.}
+#' \item{lambda.min}{Optimal lambda values that minimize each criterion.}
+#'
+#' @author Gianluca Sottile \email{gianluca.sottile@unipa.it}
+#'
+#' @seealso \code{\link{islasso.path}}, \code{\link{summary.islasso.path}}, \code{\link{predict.islasso.path}},
+#'          \code{\link{coef.islasso.path}}, \code{\link{deviance.islasso.path}}, \code{\link{logLik.islasso.path}},
+#'          \code{\link{residuals.islasso.path}}, \code{\link{fitted.islasso.path}}
+#'
+#' @examples
+#' set.seed(1)
+#' n <- 100; p <- 30
+#' beta <- c(runif(10, -2, 2), rep(0, p - 10))
+#' sim <- simulXy(n = n, p = p, beta = beta, seed = 1, family = gaussian())
+#' fit <- islasso.path(y ~ ., data = sim$data, family = gaussian())
+#' GoF.islasso.path(fit)
+#'
+#' @export
+GoF.islasso.path <- function(object, plot = TRUE, ...) {
+  lambda.seq <- object$Info[, "lambda"]
   nlambda <- length(lambda.seq)
   gof.name <- c("AIC", "BIC", "AICc", "eBIC", "GCV", "GIC")
   gof <- object$GoF
+
+  # More efficient way to find minimums
   id.min <- apply(gof, 2, which.min)
   lambda.min <- lambda.seq[id.min]
   names(lambda.min) <- gof.name
-  
-  if(plot) {
-    old.par <- par(no.readonly = TRUE)
-    on.exit(par(old.par))
-    par(mfrow = c(2, 3))
-    for(i in seq_len(length(gof.name))) {
-      plot(log(lambda.seq), gof[, i], lwd = 1.5, type = "l", xlab = "log Lambda", ylab = gof.name[i])
-      abline(v = log(lambda.min[i]), lty = 3, lwd = 2)
+
+  out <- list(gof = gof, minimum = id.min, lambda.min = lambda.min)
+
+  if (plot) {
+    # Use tidyverse piping more consistently
+    p <- data.frame(
+      lambda = log(lambda.seq),
+      value = c(gof),
+      measure = factor(rep(gof.name, each = nlambda), levels = gof.name)
+    ) |>
+      ggplot(aes(x = lambda, y = value)) +
+      geom_line() +
+      geom_point(size = 1) +
+      facet_wrap(~ measure, scales = "free_y", nrow = 2, ncol = 3) +
+      theme_bw() +
+      xlab(expression(log(lambda))) +
+      ylab("") +
+      geom_vline(
+        data = data.frame(
+          measure = factor(gof.name, levels = gof.name),
+          opt = log(lambda.min)
+        ),
+        aes(xintercept = opt),
+        linetype = "dashed",
+        colour = "red"
+      ) +
+      theme(strip.background = element_rect(fill = "white"))
+
+    out$plot <- p
+
+    # Return the plot if desired
+    if (inherits(plot, "logical") && plot) {
+      print(p)
     }
   }
-  
-  return(list(gof = gof, minimum = id.min, lambda.min = lambda.min))
+
+  return(out)
 }
-
-
-
-# islasso.path.fit.lm <- function(prep, start, lambda, fam, link){
-#   
-#   cov.unscaled <- start$covar
-#   tmp2 <- se <- start$se
-#   tmp <- b <- start$beta + .01
-#   
-#   c <- prep$setting$c
-#   fix.c <- prep$setting$fix.c
-#   tol <- prep$setting$tol
-#   itmax <- prep$setting$itmax
-#   trace <- prep$setting$trace
-#   sigma2 <- prep$setting$sigma2
-#   nlambda <- length(lambda)
-#   alpha <- prep$alpha
-#   nvars <- prep$nvars
-#   nobs <- prep$nobs
-#   intercept <- prep$intercept
-#   x <- prep$X
-#   y <- prep$y
-#   weights <- prep$weights
-#   offset <- prep$offset
-#   unpenalized <- prep$unpenalized
-#   family <- prep$family
-#   
-#   xw <- x * weights
-#   XtX <- crossprod(xw, x)
-#   XtY <- crossprod(xw, y)
-#   
-#   outputInfo <- matrix(NA, ncol = 13, nrow = nlambda)
-#   outputCoef <- matrix(NA, ncol = nvars, nrow = nlambda)
-#   outputSE <- matrix(NA, ncol = nvars, nrow = nlambda)
-#   outputWeight <- matrix(NA, ncol = nvars, nrow = nlambda)
-#   
-#   if (trace == 2L) cat('\r\n\r\n    Ind|Max \t      lambda \t    df \t\t     phi \t Iter1 \t ErrorB \t Iter2 \t Error SE')
-#   time0 <- Sys.time()
-#   
-#   for (rep in seq_len(nlambda)) {
-#     l <- lambda[rep]
-#     
-#     active <- as.vector(abs(b) > 1E-6)
-#     if(sum(active) == 0 | (intercept && all(which(active) == 1))) break
-#     
-#     temp.fit <- islasso.path.fitter(b[active], se[active], c[active], fix.c, l, alpha, XtX[active, active], XtY[active,], 
-#                                     xw[, active, drop = FALSE], y, cov.unscaled[active, active], nobs, intercept, tol, 
-#                                     unpenalized, offset, weights, sigma2)
-#     b[active] <- temp.fit$b
-#     se[active] <- temp.fit$se
-#     c[active] <- temp.fit$c
-#     cov.unscaled[active, active] <- temp.fit$cov.unscaled
-#     iter <- temp.fit$iter
-#     iter2 <- temp.fit$iter2
-#     err <- temp.fit$err
-#     err2 <- temp.fit$err2
-#     e <- temp.fit$e
-#     s2 <- temp.fit$s2
-#     hi <- temp.fit$hi
-#     df <- temp.fit$df
-#     conv <- temp.fit$conv
-#     
-#     tau <- 1
-#     ll <- n * log(2 * pi * tau) + e / tau
-#     aicc <- ll + 2 *  n * df * (df + 1) / (n - df - 1) + 2 * df
-#     bic <- ll + log(n) * df
-#     gcv <- ll / ((1 - df / n) ^ 2)
-#     AIC <- ll  + 2 * df
-#     
-#     if (trace == 2L) {
-#       cat(
-#         '\r\n', formatC(rep, format = "d", width = 4, digits = 0), '|',
-#         formatC(nlambda, format = "d", width = 4, digits = 0), '\t ',
-#         formatC(l, format = "f", width = 10, digits = 4), '\t',
-#         formatC(df, format = "f", width = 10, digits = 4), '\t',
-#         formatC(s2, format = "f", width = 10, digits = 4), '\t',
-#         formatC(iter, format = "d", width = 4, digits = 0), '\t',
-#         formatC(err,, format = "f", width = 5 + 3, digits = 5 + 1), '\t',
-#         formatC(iter2, format = "d", width = 4, digits = 0), '\t',
-#         formatC(err2, format = "f", width = 5 + 3, digits = 5 + 1)
-#       )
-#     } 
-#     else{
-#       if(trace == 1L) cat('\r ', rep, '|', nlambda, rep(' ', 20))
-#     }
-#     
-#     outputInfo[rep, ] <- c(l, df, s2, e, ll, iter, iter2, err, err2, aicc, AIC, bic, gcv)
-#     outputCoef[rep, ] <- c(b)
-#     outputSE[rep, ] <- c(se)
-#     outputWeight[rep, ] <- c(c)
-#   }
-#   
-#   colnames(outputInfo) <- c('lambda', "df", "phi", "deviance", "logLik", 
-#                             "iterB", "iterSE", "errB", "errSE", 
-#                             'AICc', 'AIC', 'BIC', 'GCV')
-#   colnames(outputCoef) <- prep$nms
-#   colnames(outputSE) <- prep$nms
-#   colnames(outputWeight) <- prep$nms
-#   
-#   outputLinPred <- t(tcrossprod(x, na.omit(outputCoef)))
-#   outputFitted <- outputLinPred
-#   outputResid <- rep(y, each = nrow(outputFitted)) - outputFitted
-#   
-#   cat('\n\n Executed in ', Sys.time() - time0, '(s) \n')
-#   output <- list(call = match.call(), Info = na.omit(outputInfo), Coef = na.omit(outputCoef), 
-#                  SE = na.omit(outputSE), Weight = na.omit(outputWeight), Linear.predictors = outputLinPred,
-#                  Fitted.values = outputFitted, Residuals = outputResid,
-#                  Input = list(n = nobs, p = nvars, intercept = intercept, x = x, y = y, alpha = alpha, unpenalized = unpenalized))
-#   
-#   return(output)
-# }
-# 
-# islasso.path.fitter <- function(b, se, c, fix.c, l, alpha, XtX, XtY, newx, y, 
-#                                 cov.unscaled, n, intercept, tol, unpenalized, 
-#                                 offset, weights, sigma2) {
-#   fn1 <- function(b, s = 1, c = .5, alpha, unpenalized) {
-#     lb <- length(b)
-#     bsc <- (b / s)
-#     r <- alpha * (c*(2 * pnorm(bsc, 0, 1) - 1) + (1 - c)*(2 * pnorm(bsc, 0, 1E-5) - 1)) / b + (1 - alpha)
-#     if(any(unpenalized)) r[unpenalized] <- 0
-#     if (length(r) > 1) {
-#       r <- diag(as.vector(r), nrow = lb, ncol = lb)
-#     }
-#     return(r)
-#   }
-#   fn2 <- function (b, s = 1, c = .5, alpha, unpenalized) {
-#     lb <- length(b)
-#     bsc <- (b / s)
-#     r <- alpha *(c*(2 * dnorm(bsc, 0, 1) / s) + (1 - c)*(2 * dnorm(bsc, 0, 1E-5) / s)) + (1 - alpha)
-#     r[is.nan(r)] <- 0
-#     if(any(unpenalized)) r[unpenalized] <- 0
-#     if (length(r) > 1) {
-#       r <- diag(as.vector(r), nrow = lb, ncol = lb)
-#     }
-#     return(r)
-#   }
-#   
-#   conv <- 0L
-#   iter <- iter2 <- 1
-#   err2 <- 1
-#   tmp <- b
-#   tmp2 <- se
-#   err.old <- 1
-#   s2 <- sigma2
-#   
-#   while(err2 > tol) {
-#     err <- 1
-#     
-#     if(!fix.c) c <- 2*binomial()$linkinv(abs(b / se)) - 1
-#     
-#     while (err > tol) {
-#       inV <- XtX + l * fn1(b = b, s = se, c = c, alpha = alpha, unpenalized = unpenalized)
-#       b <- temp.check <- try(solve(inV, XtY), silent = TRUE)
-#       if(inherits(temp.check, "try-error")) {
-#         b <- tmp 
-#         err <- err.old
-#         conv <- 1L
-#         warning(paste0("XtX + l*P' not invertible at lambda ", l, ". Safe exit!"))
-#         break()
-#       }
-#       
-#       err.old <- err <- max(abs(tmp - b))
-#       # if(err <= 10 ^ -(digit + 0)) print(data.frame(it = iter, err = err, t(b[1:10])))
-#       tmp <- b
-#       iter <- iter + 1
-#     }
-#     if(conv == 1) break()
-#     eta <- newx %*% b + offset
-#     res <- y - eta
-#     e <- sum(weights * (res^2))
-#     inVg <- XtX + l * fn2(b = b, s = se, c = c, alpha = alpha, unpenalized = unpenalized)
-#     invH <- chol2inv(chol(inVg))
-#     tempMat <- invH %*% XtX
-#     hi <- diag(invH %*% XtX)
-#     df <- sum(hi)
-#     
-#     cov.unscaled <- cov.unscaled + .25 * (tempMat %*% invH - cov.unscaled)
-#     
-#     if(sigma2 <= 0) s2 <- e / (n - df)
-#     cov.scaled <- s2 * cov.unscaled
-#     se <- sqrt(diag(cov.scaled))
-#     err2 <- max(abs(tmp2 - se))
-#     # print(data.frame(it = iter2, err2 = err2, s2 = s2, df = df, t(se[1:10])))
-#     tmp2 <- se
-#     iter2 <- iter2 + 1
-#   }
-#   
-#   list(b = b, se = se, c = c, cov.unscaled = cov.unscaled, iter = iter, 
-#        err = err, iter2 = iter2, err2 = err2,  e = e, s2 = s2, hi = hi, 
-#        df = df, conv = conv, eta = eta, mu = eta, res = res)
-# }

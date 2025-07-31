@@ -4,6 +4,23 @@ x*********************************
 *                          	*
 *********************************
 
+====================
+Version 1.6.0 (2025-07-30)
+====================
+
+Performance & Refactoring
+- Core computational routines have been cleaned up, and some bugs have been fixed.
+- Legacy R routines have been revised, cleaned, and commented. Minor inconsistencies have been addressed.
+
+Documentation
+- Help files and function manuals are now fully managed via `roxygen2`, with substantial updates to usage examples and descriptions.
+
+Visualization
+- All plotting functions have been refactored to use the `ggplot2` framework for consistent and modern graphics.
+
+User Experience
+- A custom ASCII startup banner has been added on package attach, providing a welcoming and informative message.
+
 ===============
 version 1.5.1
 ===============
@@ -67,7 +84,7 @@ version 1.2.1
 ===============
 version 1.2.0
 ===============
-* New implementation of the estimating algorithm. Now islasso is much stabler and faster. 
+* New implementation of the estimating algorithm. Now islasso is much stabler and faster.
 * New function: general linear hypotheses for linear combinations of the regression coefficients, including confidence intervals.
 * New changes:
 - prediction function includes confidence intervals for the fitted values
@@ -78,7 +95,7 @@ version 1.2.0
 ===============
 version 1.1.0
 ===============
-* New implementation of the estimating algorithm. Now islasso is much stabler and faster reducing the number of iterations to reach convergence. 
+* New implementation of the estimating algorithm. Now islasso is much stabler and faster reducing the number of iterations to reach convergence.
 * New changes:
 - step Halving with Armijo's rule has been implemented.
 - the algorithm includes the possibility to use the elastic-net approach defining an alpha parameter in the objective function as in glmnet package.
