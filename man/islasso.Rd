@@ -86,8 +86,8 @@ and Wald-based inference.
 \tabular{ll}{
 Package: \tab islasso\cr
 Type: \tab Package\cr
-Version: \tab 1.6.0\cr
-Date: \tab 2025-07-30\cr
+Version: \tab 1.6.1\cr
+Date: \tab 2025-11-13\cr
 License: \tab GPL-2\cr
 }
 
@@ -119,6 +119,7 @@ residuals(o)
 deviance(o)
 AIC(o)
 logLik(o)
+summary(relax.islasso(o), pval = 0.05)
 
 \dontrun{
 # for the interaction
@@ -164,7 +165,17 @@ Sottile G., Cilluffo G., Muggeo V.M.R. (2019)
 Technical Report. DOI: 10.13140/RG.2.2.16360.11521
 }
 \seealso{
-\code{\link{summary.islasso}}, \code{\link{predict.islasso}}, \code{\link{logLik.islasso}}
+Useful links:
+\itemize{
+  \item \url{https://gianluca-sottile.github.io/islasso/}
+  \item Report bugs at \url{https://github.com/gianluca-sottile/islasso/issues}
+}
+
+
+\code{\link{confint.islasso}}, \code{\link{plot.islasso}}, \code{\link{predict.islasso}},
+         \code{\link{summary.islasso}}, \code{\link{is.control}}, \code{\link{aic.islasso}},
+         \code{\link{anova.islasso}}, \code{\link{relax.islasso}}, \code{\link{islasso.path}},
+         \code{\link{simulXy}}
 }
 \author{
 Gianluca Sottile, based on preliminary work by Vito Muggeo.

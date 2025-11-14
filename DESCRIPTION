@@ -1,8 +1,8 @@
 Package: islasso
 Type: Package
 Title: The Induced Smoothed Lasso
-Version: 1.6.0
-Date: 2025-07-30
+Version: 1.6.1
+Date: 2025-11-13
 Authors@R: c(person("Gianluca", "Sottile", role=c("aut", "cre"), email = "gianluca.sottile@unipa.it"),
 	     person("Giovanna", "Cilluffo", role=c("aut", "ctb")),
 	     person("Vito MR", "Muggeo", role=c("aut", "ctb")))
@@ -12,7 +12,9 @@ Suggests: knitr, lars, xfun, rmarkdown, roxygen2
 Description: An implementation of the induced smoothing (IS) idea to lasso regularization models to allow estimation and inference on the model coefficients (currently hypothesis testing only). Linear, logistic, Poisson and gamma regressions with several link functions are implemented. The algorithm is described in the original paper; see <doi:10.1177/0962280219842890> and discussed in a tutorial <doi:10.13140/RG.2.2.16360.11521>.
 License: GPL (>= 2)
 Encoding: UTF-8
-RoxygenNote: 7.3.2
+URL: https://gianluca-sottile.github.io/islasso/
+BugReports: https://github.com/gianluca-sottile/islasso/issues
+RoxygenNote: 7.3.3
 NeedsCompilation: yes
 Author: Gianluca Sottile [aut, cre],
   Giovanna Cilluffo [aut, ctb],
@@ -20,5 +22,6 @@ Author: Gianluca Sottile [aut, cre],
 Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 LazyLoad: yes
 Repository: CRAN
-Packaged: 2025-07-31 12:32:13 UTC; gianlucasottile
-Date/Publication: 2025-07-31 12:50:02 UTC
+VignetteBuilder: knitr
+Packaged: 2025-11-14 13:14:41 UTC; gianlucasottile
+Date/Publication: 2025-11-14 13:50:02 UTC

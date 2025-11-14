@@ -15,7 +15,7 @@ double precision :: xtw(p,n), xtx(p,p), grad(p), hess(p,p), invH(p,p), pen(p)
 ! internal variables
 integer :: i, j, k, info
 double precision :: X_orig(n,p), xm(p), xse(p), xtwy(p), lmbd0, lambdaadapt(p)
-double precision :: theta0(p), cov0(p,p), se0(p), s2, hat_matrix(p,p), redf, ind, ind2
+double precision :: theta0(p), cov0(p,p), se0(p), s2, redf, ind, ind2 !,hat_matrix(p,p)
 
 ! Add workspace arrays for LAPACK
 double precision, allocatable :: work(:)
@@ -65,10 +65,10 @@ do i = 1, itmaxse
     call rchkusr()
     if(trace.eq.9) call islasso_trace2_3(i)
 
-    if((adaptive.eq.1).and.(i.gt.5)) then
+    if((adaptive.eq.1).and.(i.gt.10)) then
       do k = 1, p
         hi(k) = max(min(hi(k), 1.0d0), 0.00001d0)
-        lambdaadapt(k) = lambda(k) * (1 - hi(k)) / hi(k)
+        lambdaadapt(k) = lambda(k) * (1.0d0 / hi(k)**2 - 1.0d0)
       end do
     end if
 
@@ -76,7 +76,9 @@ do i = 1, itmaxse
     ! computing mixture parameters c
     if((estpi.eq.1).and.(i.gt.5)) then
         call logitlinkinv(abs(theta0 / se0), p, pi)
-        pi = 0.75d0 * (2.d0 * pi - 1.d0) + 0.25d0
+        !pi = 0.75d0 * (2.d0 * pi - 1.d0) + 0.25d0
+        !pi = abs(theta0 / se0) / (1.d0 + abs(theta0 / se0))
+        !pi = 0.9d0 * pi + 0.1d0
     end if
 
     do j = 1, itmax
@@ -85,11 +87,16 @@ do i = 1, itmaxse
 
         ! Replace solve with direct LAPACK call for better performance
         call DCOPY(p, xtwy, 1, work, 1)  ! Copy xtwy to work
-        call DGESV(p, 1, hess, p, ipiv, work, p, info)
+        !call DGESV(p, 1, hess, p, ipiv, work, p, info)
+
+        call DPOTRF('U', p, hess, p, info)
+        call DPOTRS('U', p, 1, hess, p, work, p, info)
+
         if(info.ne.0) then
             conv = 2
             exit
         end if
+
         call DCOPY(p, work, 1, theta, 1)  ! Copy result back to theta
         theta = theta0 + 0.5d0 * (theta - theta0)
 
@@ -112,25 +119,26 @@ do i = 1, itmaxse
 
     ! updating components for variance covariance matrix
     call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
-
-    ! More efficient matrix inversion using LAPACK
-    call inv_lapack(p, hess, invH, info, ipiv, work)
+    !call inv_lapack(p, hess, invH, info, ipiv, work)
+    !call inv_posdef(p, hess, invH, info, ipiv, work)
+    call cov_from_hess_spd(p, hess, xtx, cov, hi, info)
     if(info.ne.0) then
         conv = 2
         exit
     end if
 
-    call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, hat_matrix, p)
-    call DGEMM('N', 'N', p, p, p, 1.d0, hat_matrix, p, invH, p, 0.d0, cov, p)
+    !call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, hat_matrix, p)
+    !call DGEMM('N', 'N', p, p, p, 1.d0, hat_matrix, p, invH, p, 0.d0, cov, p)
     cov = cov0 + 0.1d0 * (cov - cov0)
 
-    do k = 1, p
-      hi(k) = hat_matrix(k,k)
-    end do
+    !do k = 1, p
+    !  hi(k) = hat_matrix(k,k)
+    !end do
 
     edf = sum(hi)
     redf = n - edf
-    if(sigma2.le.0) s2 = dev / redf
+    if (redf .le. 1.0d-12) redf = 1.0d0
+    if(sigma2.le.0.0d0) s2 = dev / redf
 
     do k = 1, p
         se(k) = sqrt(s2 * cov(k,k))
@@ -138,10 +146,8 @@ do i = 1, itmaxse
 
     ! checking possible convergence criterion
     ind = MAXVAL(abs(se - se0))
-    if(trace.eq.2) call islasso_trace1_2_2(tol, i, lmbd0, dev, redf, s2, &
-        & ind, ind2)
-    if(trace.eq.1) call islasso_trace1_7_2(tol, i, lmbd0, dev, redf, s2, &
-        & ind, ind2)
+    if(trace.eq.2) call islasso_trace1_2_2(tol, i, lmbd0, dev, redf, s2, ind, ind2)
+    if(trace.eq.1) call islasso_trace1_7_2(tol, i, lmbd0, dev, redf, s2, ind, ind2)
 
     if(ind.le.(tol*10.d0)) then
         if((trace.eq.1).or.(trace.eq.2)) call islasso_trace1_8(1)
@@ -183,7 +189,8 @@ end if
 ! updating components for variance covariance matrix
 call gradient(theta, se, lambdaadapt, xtw, res, pi, n, p, grad, alpha)
 call hessian(theta, se, lambdaadapt, xtx, pi, p, hess, alpha)
-call inv_lapack(p, hess, invH, info, ipiv, work)
+!call inv_lapack(p, hess, invH, info, ipiv, work)
+call inv_posdef(p, hess, invH, info, ipiv, work)
 if(info.ne.0) then
     conv = 2
 end if
@@ -218,7 +225,7 @@ double precision :: xtw(p,n), xtx(p,p), grad(p), hess(p,p), invH(p,p), pen(p)
 ! internal variables
 integer :: i, j, k, info
 double precision :: X_orig(n,p), xm(p), xse(p), xtwz(p), z(n), lmbd0, lambdaadapt(p)
-double precision :: theta0(p), cov0(p,p), se0(p), s2, hat_matrix(p,p), redf, ind, ind2
+double precision :: theta0(p), cov0(p,p), se0(p), s2, redf, ind, ind2 !, hat_matrix(p,p)
 
 ! Add workspace arrays for LAPACK
 integer, allocatable :: ipiv(:)
@@ -251,9 +258,9 @@ lambdaadapt = lambda
 ! Initial calculation of eta, mu, varmu, mu_eta_val
 call DGEMV('N', n, p, 1.d0, X, n, theta, 1, 0.d0, eta, 1)
 eta = eta + offset
-call family(fam, link, 2, eta, n, mu)
-call family(fam, link, 4, mu, n, varmu)
-call family(fam, link, 3, eta, n, mu_eta_val)
+call family(fam, link, 2, eta, n, mu)           ! link inverse
+call family(fam, link, 4, mu, n, varmu)         ! var(mu)
+call family(fam, link, 3, eta, n, mu_eta_val)   ! dmu/deta
 res = (y - mu) / mu_eta_val
 w = weights * (mu_eta_val**2) / varmu
 ! Compute X'WX and X'Wz efficiently
@@ -271,10 +278,10 @@ do i = 1, itmaxse
     call rchkusr()
 
     ! Update adaptive lambda if enabled
-    if((adaptive.eq.1) .and. (i.gt.5)) then
+    if((adaptive.eq.1) .and. (i.gt.10)) then
         do k = 1, p
             hi(k) = max(min(hi(k), 1.0d0), 0.00001d0)
-            lambdaadapt(k) = lambda(k) * (1 - hi(k)) / hi(k)
+            lambdaadapt(k) = lambda(k) * (1.0d0 / hi(k)**2 - 1.0d0)
         end do
     end if
 
@@ -282,7 +289,9 @@ do i = 1, itmaxse
     ! Update mixture parameters if needed
     if((estpi.eq.1) .and. (i.gt.5)) then
         call logitlinkinv(abs(theta0 / se0), p, pi)
-        pi = 0.75d0 * (2.d0 * pi - 1.d0) + 0.25d0
+        !pi = 0.75d0 * (2.d0 * pi - 1.d0) + 0.25d0
+        !pi = abs(theta0 / se0) / (1.d0 + abs(theta0 / se0))
+        !pi = 0.9d0 * pi + 0.1d0
     end if
 
     ! Inner IWLS iteration
@@ -293,7 +302,11 @@ do i = 1, itmaxse
 
         ! Solve linear system using LAPACK
         call DCOPY(p, xtwz, 1, work, 1)
-        call DGESV(p, 1, hess, p, ipiv, work, p, info)
+        !call DGESV(p, 1, hess, p, ipiv, work, p, info)
+
+        call DPOTRF('U', p, hess, p, info)
+        call DPOTRS('U', p, 1, hess, p, work, p, info)
+
         if(info /= 0) then
             conv = 2
             exit
@@ -330,20 +343,22 @@ do i = 1, itmaxse
 
     ! Update covariance matrix
     call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
-    call inv_lapack(p, hess, invH, info, ipiv, work)
+    !call inv_lapack(p, hess, invH, info, ipiv, work)
+    !call inv_posdef(p, hess, invH, info, ipiv, work)
+    call cov_from_hess_spd(p, hess, xtx, cov, hi, info)
     if(info.ne.0) then
         conv = 2
         exit
     end if
 
-    call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, hat_matrix, p)
-    call DGEMM('N', 'N', p, p, p, 1.d0, hat_matrix, p, invH, p, 0.d0, cov, p)
+    !call DGEMM('N', 'N', p, p, p, 1.d0, invH, p, xtx, p, 0.d0, hat_matrix, p)
+    !call DGEMM('N', 'N', p, p, p, 1.d0, hat_matrix, p, invH, p, 0.d0, cov, p)
     cov = cov0 + 0.1d0 * (cov - cov0)
 
     ! Extract hat matrix diagonal
-    do k = 1, p
-        hi(k) = hat_matrix(k,k)
-    end do
+    !do k = 1, p
+    !    hi(k) = hat_matrix(k,k)
+    !end do
 
     edf = sum(hi)
     redf = n - edf
@@ -358,7 +373,7 @@ do i = 1, itmaxse
     if(trace == 2) call islasso_trace2_2_2(tol, i, lmbd0, dev, redf, s2, ind, ind2)
     if(trace == 1) call islasso_trace2_7_2(tol, i, lmbd0, dev, redf, s2, ind, ind2)
 
-    if(ind.eq.(tol*10)) then
+    if(ind.le.(tol*10)) then
         if((trace == 1) .or. (trace == 2)) call islasso_trace1_8(1)
         if(trace == 9) call islasso_trace2_6(i)
         exit
@@ -402,7 +417,8 @@ end if
 ! updating components for variance covariance matrix
 call gradient(theta, se, lambdaadapt, xtw, res, pi, n, p, grad, alpha)
 call hessian(theta, se, lambdaadapt, xtx, pi, p, hess, alpha)
-call inv_lapack(p, hess, invH, info, ipiv, work)
+!call inv_lapack(p, hess, invH, info, ipiv, work)
+call inv_posdef(p, hess, invH, info, ipiv, work)
 if(info.ne.0) then
     conv = 2
 end if
