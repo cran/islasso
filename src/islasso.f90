@@ -120,7 +120,7 @@ do i = 1, itmaxse
     ! updating components for variance covariance matrix
     call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
     !call inv_lapack(p, hess, invH, info, ipiv, work)
-    !call inv_posdef(p, hess, invH, info, ipiv, work)
+    !call inv_posdef(p, hess, invH, info)
     call cov_from_hess_spd(p, hess, xtx, cov, hi, info)
     if(info.ne.0) then
         conv = 2
@@ -190,7 +190,7 @@ end if
 call gradient(theta, se, lambdaadapt, xtw, res, pi, n, p, grad, alpha)
 call hessian(theta, se, lambdaadapt, xtx, pi, p, hess, alpha)
 !call inv_lapack(p, hess, invH, info, ipiv, work)
-call inv_posdef(p, hess, invH, info, ipiv, work)
+call inv_posdef(p, hess, invH, info)
 if(info.ne.0) then
     conv = 2
 end if
@@ -344,7 +344,7 @@ do i = 1, itmaxse
     ! Update covariance matrix
     call hessian(theta, se0, lambdaadapt, xtx, pi, p, hess, alpha)
     !call inv_lapack(p, hess, invH, info, ipiv, work)
-    !call inv_posdef(p, hess, invH, info, ipiv, work)
+    !call inv_posdef(p, hess, invH, info)
     call cov_from_hess_spd(p, hess, xtx, cov, hi, info)
     if(info.ne.0) then
         conv = 2
@@ -418,7 +418,7 @@ end if
 call gradient(theta, se, lambdaadapt, xtw, res, pi, n, p, grad, alpha)
 call hessian(theta, se, lambdaadapt, xtx, pi, p, hess, alpha)
 !call inv_lapack(p, hess, invH, info, ipiv, work)
-call inv_posdef(p, hess, invH, info, ipiv, work)
+call inv_posdef(p, hess, invH, info)
 if(info.ne.0) then
     conv = 2
 end if

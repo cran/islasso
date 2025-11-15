@@ -1,8 +1,8 @@
 Package: islasso
 Type: Package
 Title: The Induced Smoothed Lasso
-Version: 1.6.1
-Date: 2025-11-13
+Version: 1.6.2
+Date: 2025-11-15
 Authors@R: c(person("Gianluca", "Sottile", role=c("aut", "cre"), email = "gianluca.sottile@unipa.it"),
 	     person("Giovanna", "Cilluffo", role=c("aut", "ctb")),
 	     person("Vito MR", "Muggeo", role=c("aut", "ctb")))
@@ -23,5 +23,5 @@ Maintainer: Gianluca Sottile <gianluca.sottile@unipa.it>
 LazyLoad: yes
 Repository: CRAN
 VignetteBuilder: knitr
-Packaged: 2025-11-14 13:14:41 UTC; gianlucasottile
-Date/Publication: 2025-11-14 13:50:02 UTC
+Packaged: 2025-11-15 06:46:12 UTC; gianlucasottile
+Date/Publication: 2025-11-15 11:50:19 UTC

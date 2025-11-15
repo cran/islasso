@@ -1,3 +1,7 @@
+# islasso 1.6.2 (2025-11-15)
+
+- Some bugs fixed.
+
 # islasso 1.6.1 (2025-11-13)
 
 - Created GitHub page and website.

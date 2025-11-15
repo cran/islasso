@@ -86,8 +86,8 @@ and Wald-based inference.
 \tabular{ll}{
 Package: \tab islasso\cr
 Type: \tab Package\cr
-Version: \tab 1.6.1\cr
-Date: \tab 2025-11-13\cr
+Version: \tab 1.6.2\cr
+Date: \tab 2025-11-15\cr
 License: \tab GPL-2\cr
 }
 

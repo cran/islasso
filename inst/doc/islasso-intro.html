@@ -14,7 +14,7 @@
 <meta name="author" content="Giovanna Cilluffo" />
 <meta name="author" content="Vito M.R. Muggeo" />
 
-<meta name="date" content="2025-11-14" />
+<meta name="date" content="2025-11-15" />
 
 <title>An Introduction to islasso</title>
 
@@ -345,7 +345,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h4 class="author">Gianluca Sottile</h4>
 <h4 class="author">Giovanna Cilluffo</h4>
 <h4 class="author">Vito M.R. Muggeo</h4>
-<h4 class="date">November 14, 2025</h4>
+<h4 class="date">November 15, 2025</h4>
 
 
 
@@ -491,20 +491,20 @@ simply apply the lasso using the R package <strong>glmnet</strong></p>
 <span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>a1 <span class="ot">&lt;-</span> <span class="fu">cv.glmnet</span>(x, y, <span class="at">family =</span> <span class="st">&quot;gaussian&quot;</span>)</span>
 <span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(Prostate)</span>
 <span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>a1<span class="sc">$</span>lambda.min <span class="sc">*</span> n</span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt; [1] 0.1934447</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt; [1] 3.797398</span></span>
 <span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a></span>
 <span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>b <span class="ot">&lt;-</span> <span class="fu">drop</span>(<span class="fu">coef</span>(a1, <span class="st">&quot;lambda.min&quot;</span>, <span class="at">exact =</span> <span class="cn">TRUE</span>))</span>
 <span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="fu">length</span>(b[b <span class="sc">!=</span> <span class="dv">0</span>])</span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; [1] 9</span></span></code></pre></div>
-<p>Ten-fold cross validation “selects” <span class="math inline">\(\lambda=\)</span> 0.193. corresponding to 9 non
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; [1] 7</span></span></code></pre></div>
+<p>Ten-fold cross validation “selects” <span class="math inline">\(\lambda=\)</span> 3.797. corresponding to 7 non
 null coefficients</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">names</span>(b[b <span class="sc">!=</span> <span class="dv">0</span>])</span>
 <span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;(Intercept)&quot; &quot;lcavol&quot;      &quot;lweight&quot;     &quot;age&quot;         &quot;lbph&quot;       </span></span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; [6] &quot;svi&quot;         &quot;lcp&quot;         &quot;gleason&quot;     &quot;pgg45&quot;</span></span></code></pre></div>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; [6] &quot;svi&quot;         &quot;pgg45&quot;</span></span></code></pre></div>
 <p>The last three estimates are</p>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">tail</span>(b[b <span class="sc">!=</span> <span class="dv">0</span>], <span class="at">n =</span> <span class="dv">3</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt;          lcp      gleason        pgg45 </span></span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; -0.095643070  0.042321618  0.004337008</span></span></code></pre></div>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt;        lbph         svi       pgg45 </span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; 0.069318034 0.592326060 0.002184294</span></span></code></pre></div>
 <p>A reasonable question is if all the “selected” coefficients are
 significant in the model. Unfortunately lasso regression does not return
 standard errors due to nonsmoothness of objective, and some alternative
